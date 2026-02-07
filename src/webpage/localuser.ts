@@ -4673,7 +4673,7 @@ class Localuser {
 			(guildName ? " | " + guildName : "") +
 			" | " +
 			this.instancePing.name +
-			" | Fermi";
+			" | Lucky 5L";
 	}
 	async instanceStats() {
 		const dialog = new Dialog("");

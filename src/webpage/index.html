@@ -3,10 +3,11 @@
 	<head>
 		<meta charset="utf-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-		<title>Fermi: A Spacebar Client</title>
-		<meta content="Fermi" property="og:title" />
-		<meta content="Join a community of people and start chatting!" property="og:description" />
-		<meta content="Join a community of people and start chatting!" name="description" />
+		<title>Lucky 5L</title>
+		<meta name="apple-mobile-web-app-title" content="Lucky 5L" />
+		<meta content="Lucky 5L" property="og:title" />
+		<meta content="Lucky 5L 专属聊天服务" property="og:description" />
+		<meta content="Lucky 5L 专属聊天服务" name="description" />
 		<meta content="/logo.webp" property="og:image" />
 		<meta content="#4b458c" name="theme-color" />
 		<link href="/style.css" rel="stylesheet" />
@@ -25,83 +26,26 @@
 
 	<body class="no-theme" style="overflow-y: scroll">
 		<div id="titleDiv">
-			<img src="/logo.svg" width="40" alt="Fermi icon" />
-			<h2 id="pageTitle">Fermi</h2>
-			<a href="/invite/USgYJo?instance=https%3A%2F%2Fspacebar.chat" class="TitleButtons">
-				Spacebar Guild
-			</a>
-			<a href="https://github.com/MathMan05/Fermi" class="TitleButtons"> Github </a>
-			<a href="/channels/@me" class="TitleButtons" id="openClient" i18n="htmlPages.openClient">
-				Open Client
-			</a>
+			<img src="/logo.svg" width="40" alt="icon" />
+			<h2 id="pageTitle">Lucky 5L</h2>
+			<a href="/login" class="TitleButtons">登录</a>
+			<a href="/register" class="TitleButtons">注册</a>
+			<a href="/channels/@me" class="TitleButtons" id="openClient">打开客户端</a>
 		</div>
 		<div id="homePage">
-			<h1 class="pagehead" id="welcomeJank" i18n="htmlPages.welcomeJank">Welcome to Fermi</h1>
-			<div class="pagebox" id="ScreenshotSlides">
-				<span class="rightArrow svg-intoMenu"></span>
-				<span class="leftArrow svg-leftArrow"></span>
-				<img src="./home/SS1.webp" class="screenshots" alt="Screenshot 1" />
-				<img src="./home/SS2.webp" class="screenshots hidden" alt="Screenshot 2" />
-				<img src="./home/SS3.webp" class="screenshots hidden" alt="Screenshot 3" />
-				<div id="slideCount"></div>
-			</div>
+			<h1 class="pagehead" id="welcomeJank">欢迎来到 Lucky 5L</h1>
 			<div class="pagebox">
-				<h2 id="compatableInstances" i18n="htmlPages.compatableInstances">
-					Spacebar-Compatible Instances:
-				</h2>
-				<div id="instancebox"></div>
-			</div>
-			<div class="pagebox">
-				<p id="box1title" i18n="htmlPages.box1title">
-					Fermi is a Spacebar-compatible client seeking to be as good as it can be with many
-					features including:
+				<p id="box1title">
+					Lucky 5L 专属聊天服务，功能包括：
 				</p>
 				<ul id="box1Items">
-					<li>Direct Messaging</li>
-					<li>Reactions support</li>
-					<li>Invites</li>
-					<li>Account switching</li>
-					<li>User settings</li>
-					<li>Developer portal</li>
-					<li>Bot invites</li>
-					<li>Translation support</li>
+					<li>私信聊天</li>
+					<li>表情回应</li>
+					<li>群组频道</li>
+					<li>多账号切换</li>
+					<li>AI 助手 Lucky</li>
+					<li>文件共享</li>
 				</ul>
-			</div>
-
-			<div class="pagebox">
-				<h2 id="box5title" i18n="blog.fermi">Fermi Blog</h2>
-				<p id="box5description" i18n="blog.desc">
-					Read or subscribe to the blog for updates on Fermi!
-				</p>
-				<br />
-				<a href="https://blog.fermi.chat" class="TitleButtons" id="blog" i18n="blog.blog"> Blog </a>
-				<div id="recentBlog" class="flexttb"></div>
-			</div>
-
-			<div class="pagebox">
-				<h2 id="box4title" i18n="htmlPages.transTitle">Translate Fermi</h2>
-				<p id="box4description" i18n="htmlPages.transDesc">
-					You can help translate Fermi into your own language!
-				</p>
-				<br />
-				<a
-					href="https://translatewiki.net/wiki/Translating:Fermi"
-					class="TitleButtons"
-					id="translate"
-					i18n="htmlPages.trans"
-				>
-					Translate
-				</a>
-			</div>
-
-			<div class="pagebox">
-				<h2 id="box3title" i18n="htmlPages.box3title">Contribute to Fermi</h2>
-				<p id="box3description" i18n="htmlPages.box3description">
-					We always appreciate some help, whether that be in the form of bug reports, code, help
-					translate, or even just pointing out some typos.
-				</p>
-				<br />
-				<a href="https://github.com/MathMan05/Fermi" class="TitleButtons"> Github </a>
 			</div>
 		</div>
 	</body>

@@ -156,6 +156,7 @@ if (window.location.pathname.startsWith("/channels")) {
 		return nonce;
 	}
 	async function handleEnter(event: KeyboardEvent): Promise<void> {
+		if (event.isComposing) return;
 		if (event.key === "Escape" && (images.length || thisUser.channelfocus?.replyingto)) {
 			while (images.length) {
 				const elm = imagesHtml.get(images.pop() as Blob) as HTMLElement;
@@ -245,6 +246,7 @@ if (window.location.pathname.startsWith("/channels")) {
 	typebox.markdown = markdown;
 	typebox.addEventListener("keyup", handleEnter);
 	typebox.addEventListener("keydown", (event) => {
+		if (event.isComposing) return;
 		thisUser.keydown(event);
 		if (event.key === "Enter" && !event.shiftKey) {
 			event.preventDefault();

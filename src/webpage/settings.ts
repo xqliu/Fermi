@@ -943,6 +943,11 @@ class InstancePicker implements OptionsElement<InstanceInfo | null> {
 		InstancePicker.picker = this;
 		InstancePicker.genDataList();
 
+		const json = getInstances();
+		if (json && json.length <= 1) {
+			div.style.display = "none";
+		}
+
 		return div;
 	}
 	button?: HTMLButtonElement;

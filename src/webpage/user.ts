@@ -997,7 +997,7 @@ class User extends SnowFlake {
 			}
 		}
 		if (this.avatar !== null) {
-			return `${this.info.cdn}/avatars/${this.id.replace("#clone", "")}/${this.avatar}.png`;
+			return `${this.info.cdn}/avatars/${this.id.replace("#clone", "")}/${this.avatar}`;
 		} else {
 			const int = Number((BigInt(this.id.replace("#clone", "")) >> 22n) % 6n);
 			return `${this.info.cdn}/embed/avatars/${int}.png`;
