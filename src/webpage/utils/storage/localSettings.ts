@@ -17,7 +17,7 @@ export const ServiceWorkerModeValues = [
 ];
 
 export class LocalSettings {
-	serviceWorkerMode: ServiceWorkerMode = ServiceWorkerMode.Unregistered;
+	serviceWorkerMode: ServiceWorkerMode = ServiceWorkerMode.Enabled;
 	constructor(init?: Partial<LocalSettings>) {
 		Object.assign(this, init);
 	}
@@ -40,6 +40,12 @@ function migrateOldSettings() {
 	if (oldSWMode !== null) {
 		settings.serviceWorkerMode = oldSWMode as ServiceWorkerMode;
 		localStorage.removeItem("SWMode");
+		mod = true;
+	}
+
+	// Force-enable SW for users stuck on Unregistered
+	if (settings.serviceWorkerMode === ServiceWorkerMode.Unregistered) {
+		settings.serviceWorkerMode = ServiceWorkerMode.Enabled;
 		mod = true;
 	}
 

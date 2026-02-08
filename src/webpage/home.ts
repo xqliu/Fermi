@@ -2,6 +2,12 @@ import {I18n} from "./i18n.js";
 import {makeRegister} from "./register.js";
 import {mobile} from "./utils/utils.js";
 if (window.location.pathname === "/" || window.location.pathname.startsWith("/index")) {
+	// Auto-redirect to app if user is already logged in
+	const userInfo = localStorage.getItem("userinfos");
+	if (userInfo && userInfo !== "[]" && userInfo !== "{}") {
+		window.location.pathname = "/app";
+	}
+
 	console.log(mobile);
 	const serverbox = document.getElementById("instancebox") as HTMLDivElement;
 
