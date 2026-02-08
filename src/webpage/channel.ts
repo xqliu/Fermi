@@ -3068,12 +3068,14 @@ class Channel extends SnowFlake {
 		const loading = document.getElementById("loadingdiv") as HTMLDivElement;
 		const removetitle = document.getElementById("removetitle");
 		//messages.innerHTML="";
+		let scrollToBottom = false;
 		if (!id) {
 			if (this.lastreadmessageid && this.messages.has(this.lastreadmessageid)) {
 				id = this.lastreadmessageid;
 			} else if (this.lastreadmessageid && (id = this.findClosest(this.lastreadmessageid))) {
 			} else if (this.lastmessageid && this.messages.has(this.lastmessageid)) {
-				id = this.goBackIds(this.lastmessageid, 50);
+				id = this.lastmessageid;
+				scrollToBottom = true;
 			}
 		}
 		if (!id) {
@@ -3111,6 +3113,9 @@ class Channel extends SnowFlake {
 		*/
 		await this.focus(id, flash);
 		loading.classList.remove("loading");
+		if (scrollToBottom && this.infinite.div) {
+			this.infinite.div.scrollTop = this.infinite.div.scrollHeight;
+		}
 		//this.infinite.focus(id.id,false);
 	}
 	private goBackIds(id: string, back: number, returnifnotexistant = true): string | undefined {
