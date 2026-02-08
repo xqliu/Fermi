@@ -131,7 +131,7 @@ function toPathNoDefault(url: string) {
 	} else if (path.startsWith("/template/") || path === "/template") {
 		html = "./template";
 	} else if (path === "/") {
-		html = "./index";
+		html = "./app";
 	}
 	return html;
 }
