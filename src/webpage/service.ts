@@ -124,7 +124,7 @@ function toPathNoDefault(url: string) {
 	const Url = new URL(url);
 	let html: string | undefined = undefined;
 	const path = Url.pathname;
-	if (path.startsWith("/channels")) {
+	if (path.startsWith("/channels") || path === "/app") {
 		html = "./app";
 	} else if (path.startsWith("/invite/") || path === "/invite") {
 		html = "./invite";
