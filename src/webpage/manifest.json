@@ -1,17 +1,24 @@
 {
-	"name": "Fermi",
+	"name": "Lucky 5L",
+	"short_name": "Lucky 5L",
 	"icons": [
 		{
+			"src": "/logo-192.webp",
+			"sizes": "192x192",
+			"type": "image/webp"
+		},
+		{
 			"src": "/logo.webp",
-			"sizes": "512x512"
+			"sizes": "512x512",
+			"type": "image/webp"
 		}
 	],
 	"start_url": "/app",
 	"display": "standalone",
 	"scope": "/",
 	"theme_color": "#05050a",
-	"categories":["social"],
-	"description": "A lightweight chat app for all of your spacebar needs!",
+	"categories": ["social"],
+	"description": "Lucky 5L 专属聊天服务",
 	"background_color": "#05050a",
 	"offline_enabled": true
 }
