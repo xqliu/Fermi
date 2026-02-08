@@ -434,6 +434,10 @@ class InfiniteScroller {
 		return;
 	}
 
+	async waitForFill(): Promise<void> {
+		if (this.filling) await this.filling;
+	}
+
 	async focus(id: string, flash = true, sec = false): Promise<void> {
 		// debugger;
 		const scroller = this.scroller;

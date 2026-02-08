@@ -3113,8 +3113,15 @@ class Channel extends SnowFlake {
 		*/
 		await this.focus(id, flash);
 		loading.classList.remove("loading");
-		if (scrollToBottom && this.infinite.div) {
-			this.infinite.div.scrollTop = this.infinite.div.scrollHeight;
+		if (scrollToBottom) {
+			// getDiv calls focus() internally (fire-and-forget) which loads
+			// messages and calls scrollIntoView({block:"center"}). We need
+			// to override that to scroll to the very bottom. Wait for the
+			// filling promise to resolve, then force scroll.
+			await this.infinite.waitForFill();
+			if (this.infinite.div) {
+				this.infinite.div.scrollTop = this.infinite.div.scrollHeight;
+			}
 		}
 		//this.infinite.focus(id.id,false);
 	}
