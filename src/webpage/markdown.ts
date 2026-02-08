@@ -985,8 +985,12 @@ class MarkDown {
 	giveBox(box: HTMLDivElement, onUpdate: (upto: string, pre: boolean) => unknown = () => {}) {
 		this.box = new WeakRef(box);
 		this.onUpdate = onUpdate;
+		let composing = false;
+		box.addEventListener("compositionstart", () => {
+			composing = true;
+		});
 		box.addEventListener("keydown", (_) => {
-			if (_.isComposing) return;
+			if (composing || _.isComposing) return;
 			if (Error.prototype.stack !== "") return;
 			if (_.key === "Enter") {
 				const selection = window.getSelection() as Selection;
@@ -1002,7 +1006,7 @@ class MarkDown {
 		});
 		let prevcontent = "";
 		box.onkeyup = (_) => {
-			if (_.isComposing) return;
+			if (composing || _.isComposing) return;
 			let content = MarkDown.gatherBoxText(box);
 			if (content === "\n") content = "";
 			if (content !== prevcontent) {
@@ -1013,6 +1017,7 @@ class MarkDown {
 			}
 		};
 		box.addEventListener("compositionend", () => {
+			composing = false;
 			let content = MarkDown.gatherBoxText(box);
 			if (content === "\n") content = "";
 			if (content !== prevcontent) {
