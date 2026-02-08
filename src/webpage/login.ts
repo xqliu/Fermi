@@ -6,10 +6,12 @@ import {trimTrailingSlashes} from "./utils/netUtils";
 
 // Auto-redirect to app if user is already logged in
 if (window.location.pathname === "/login" || window.location.pathname === "/login/") {
-	const userInfo = localStorage.getItem("userinfos");
-	if (userInfo && userInfo !== "[]" && userInfo !== "{}") {
-		window.location.pathname = "/app";
-	}
+	try {
+		const info = JSON.parse(localStorage.getItem("userinfos") || "{}");
+		if (info.currentuser && info.users && Object.keys(info.users).length > 0) {
+			window.location.pathname = "/app";
+		}
+	} catch {}
 }
 function generateRecArea(recover = document.getElementById("recover")) {
 	if (!recover) return;
