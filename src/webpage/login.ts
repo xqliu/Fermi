@@ -3,6 +3,14 @@ import {I18n} from "./i18n.js";
 import {Dialog, FormError} from "./settings.js";
 import {makeRegister} from "./register.js";
 import {trimTrailingSlashes} from "./utils/netUtils";
+
+// Auto-redirect to app if user is already logged in
+if (window.location.pathname === "/login" || window.location.pathname === "/login/") {
+	const userInfo = localStorage.getItem("userinfos");
+	if (userInfo && userInfo !== "[]" && userInfo !== "{}") {
+		window.location.pathname = "/app";
+	}
+}
 function generateRecArea(recover = document.getElementById("recover")) {
 	if (!recover) return;
 	recover.innerHTML = "";
