@@ -3118,7 +3118,7 @@ class Channel extends SnowFlake {
 			// messages and calls scrollIntoView({block:"center"}). We need
 			// to override that to scroll to the very bottom. Wait for the
 			// filling promise to resolve, then force scroll.
-			await this.infinite.waitForFill();
+			await this.infinite.waitForReady();
 			if (this.infinite.div) {
 				this.infinite.div.scrollTop = this.infinite.div.scrollHeight;
 			}

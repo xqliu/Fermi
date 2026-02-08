@@ -203,7 +203,7 @@ class InfiniteScroller {
 
 		this.createObserver(div);
 
-		await this.focus(initialId, flash, true);
+		this.focusPending = this.focus(initialId, flash, true);
 		return div;
 	}
 	private get scrollBottom() {
@@ -434,7 +434,10 @@ class InfiniteScroller {
 		return;
 	}
 
-	async waitForFill(): Promise<void> {
+	private focusPending?: Promise<void>;
+
+	async waitForReady(): Promise<void> {
+		if (this.focusPending) await this.focusPending;
 		if (this.filling) await this.filling;
 	}
 
