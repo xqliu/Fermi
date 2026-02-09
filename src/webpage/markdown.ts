@@ -1042,20 +1042,17 @@ class MarkDown {
 				const data = _.clipboardData.getData("text/html");
 				const html = new DOMParser().parseFromString(data, "text/html");
 				const txt = MarkDown.gatherBoxText(html.body);
-				// Let the browser handle insertion at cursor position natively.
-				// execCommand('insertText') correctly handles:
-				// - inserting at cursor position
-				// - replacing selected text
-				// - positioning cursor after inserted text
+				if (!txt) return;
+				// Use execCommand to let browser handle insertion + cursor positioning.
+				// Do NOT call boxupdate after — saveCaretPosition inside boxupdate
+				// manipulates selection ranges which corrupts the DOM content
+				// that execCommand just inserted. Just sync internal state.
 				document.execCommand("insertText", false, txt);
-				// execCommand doesn't fire keyup, so manually trigger update.
-				// Cursor is already correct, so saveCaretPosition inside
-				// boxupdate will capture the right position.
+				// Sync internal state with DOM (which execCommand already updated correctly)
 				let content = MarkDown.gatherBoxText(box);
 				if (content === "\n") content = "";
 				prevcontent = content;
 				this.txt = content.split("");
-				this.boxupdate(undefined, undefined, undefined, false);
 			} else if (types.includes("text/plain")) {
 				//Allow the paste like normal
 			} else {
