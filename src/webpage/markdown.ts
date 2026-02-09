@@ -1042,29 +1042,21 @@ class MarkDown {
 				const html = new DOMParser().parseFromString(data, "text/html");
 				const txt = MarkDown.gatherBoxText(html.body);
 				console.log(txt);
-				const rstr = selection.toString();
+
+				// Use the full box text and caret offset for reliable splicing
+				const fullText = MarkDown.gatherBoxText(box);
 				saveCaretPosition(box)?.();
-				const content = this.textContent;
-				if (content) {
-					const parts = content.split(text);
-					const end = parts.length > 1 ? parts.slice(1).join(text) : "";
-					if (rstr) {
-						const tw = text.split(rstr);
-						tw.pop();
-						text = tw.join("");
-					}
-					const boxText = text + txt + end;
-					box.textContent = boxText;
-					const len = text.length + txt.length;
-					text = boxText;
-					this.txt = text.split("");
-					this.boxupdate(len, false, 0);
-				} else {
-					box.textContent = txt;
-					text = txt;
-					this.txt = text.split("");
-					this.boxupdate(txt.length, false, 0);
-				}
+				// text is now set to the text before caret by saveCaretPosition
+				const before = text;
+				const selectedLen = selection.toString().length;
+				const after = fullText.substring(before.length + selectedLen);
+
+				const boxText = before + txt + after;
+				box.textContent = boxText;
+				const len = before.length + txt.length;
+				text = boxText;
+				this.txt = text.split("");
+				this.boxupdate(len, false, 0);
 				_.preventDefault();
 			} else if (types.includes("text/plain")) {
 				//Allow the paste like normal
