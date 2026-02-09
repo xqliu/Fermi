@@ -1023,8 +1023,19 @@ class MarkDown {
 			if (content !== prevcontent) {
 				prevcontent = content;
 				this.txt = content.split("");
-				this.boxupdate(undefined, undefined, undefined, false);
-				MarkDown.gatherBoxText(box);
+				// Don't call boxupdate here — same root cause as the paste bug.
+				// saveCaretPosition inside boxupdate manipulates selection ranges,
+				// which corrupts cursor position on iOS after compositionend
+				// (cursor jumps to line start). The DOM is already correct
+				// after IME commits text. Markdown re-rendering will happen
+				// on the next keystroke's keyup handler.
+				//
+				// Note: onUpdate expects text-up-to-cursor (for autocomplete).
+				// After compositionend, cursor is at end of just-committed text.
+				// We pass full content here which is correct when cursor is at end
+				// (the common case for IME input). For mid-text IME input,
+				// autocomplete context may be slightly off until next keyup.
+				this.onUpdate(content, formatted);
 			}
 		});
 		box.onpaste = (_) => {
