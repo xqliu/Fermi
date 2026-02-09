@@ -1040,30 +1040,42 @@ class MarkDown {
 			if (types.includes("text/html")) {
 				const data = _.clipboardData.getData("text/html");
 				const html = new DOMParser().parseFromString(data, "text/html");
-				const txt = MarkDown.gatherBoxText(html.body);
-				console.log(txt);
-				const rstr = selection.toString();
+				const pastedText = MarkDown.gatherBoxText(html.body);
+
+				// Get full text from the same source as saveCaretPosition uses
+				const fullText = MarkDown.gatherBoxText(box);
+				const selectedText = selection.toString();
+				const selectedLen = selectedText.length;
+
+				// saveCaretPosition sets module-level `text` to content before focus
 				saveCaretPosition(box)?.();
-				const content = this.textContent;
-				if (content) {
-					const [_first, end] = content.split(text);
-					if (rstr) {
-						const tw = text.split(rstr);
-						tw.pop();
-						text = tw.join("");
-					}
-					const boxText = text + txt + (end ?? "");
-					box.textContent = boxText;
-					const len = text.length + txt.length;
-					text = boxText;
-					this.txt = text.split("");
-					this.boxupdate(len, false, 0);
+				const focusOffset = text.length;
+
+				// Determine selection start/end (handle forward & backward selections)
+				let selStart: number, selEnd: number;
+				if (selectedLen === 0) {
+					selStart = selEnd = focusOffset;
+				} else if (
+					focusOffset >= selectedLen &&
+					fullText.substring(focusOffset - selectedLen, focusOffset) === selectedText
+				) {
+					// Forward selection: focus is at end
+					selStart = focusOffset - selectedLen;
+					selEnd = focusOffset;
 				} else {
-					box.textContent = txt;
-					text = txt;
-					this.txt = text.split("");
-					this.boxupdate(txt.length, false, 0);
+					// Backward selection: focus is at start
+					selStart = focusOffset;
+					selEnd = focusOffset + selectedLen;
 				}
+
+				const before = fullText.substring(0, selStart);
+				const after = fullText.substring(selEnd);
+				const boxText = before + pastedText + after;
+				box.textContent = boxText;
+				const caretPos = before.length + pastedText.length;
+				text = boxText;
+				this.txt = text.split("");
+				this.boxupdate(caretPos, false, 0);
 				_.preventDefault();
 			} else if (types.includes("text/plain")) {
 				//Allow the paste like normal
