@@ -1046,7 +1046,8 @@ class MarkDown {
 				saveCaretPosition(box)?.();
 				const content = this.textContent;
 				if (content) {
-					const [_first, end] = content.split(text);
+					const parts = content.split(text);
+					const end = parts.length > 1 ? parts.slice(1).join(text) : "";
 					if (rstr) {
 						const tw = text.split(rstr);
 						tw.pop();
