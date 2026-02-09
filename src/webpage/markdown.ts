@@ -1038,45 +1038,24 @@ class MarkDown {
 			const selection = window.getSelection() as Selection;
 
 			if (types.includes("text/html")) {
+				_.preventDefault();
 				const data = _.clipboardData.getData("text/html");
 				const html = new DOMParser().parseFromString(data, "text/html");
-				const pastedText = MarkDown.gatherBoxText(html.body);
-
-				// Get full text from the same source as saveCaretPosition uses
-				const fullText = MarkDown.gatherBoxText(box);
-				const selectedText = selection.toString();
-				const selectedLen = selectedText.length;
-
-				// saveCaretPosition sets module-level `text` to content before focus
-				saveCaretPosition(box)?.();
-				const focusOffset = text.length;
-
-				// Determine selection start/end (handle forward & backward selections)
-				let selStart: number, selEnd: number;
-				if (selectedLen === 0) {
-					selStart = selEnd = focusOffset;
-				} else if (
-					focusOffset >= selectedLen &&
-					fullText.substring(focusOffset - selectedLen, focusOffset) === selectedText
-				) {
-					// Forward selection: focus is at end
-					selStart = focusOffset - selectedLen;
-					selEnd = focusOffset;
-				} else {
-					// Backward selection: focus is at start
-					selStart = focusOffset;
-					selEnd = focusOffset + selectedLen;
-				}
-
-				const before = fullText.substring(0, selStart);
-				const after = fullText.substring(selEnd);
-				const boxText = before + pastedText + after;
-				box.textContent = boxText;
-				const caretPos = before.length + pastedText.length;
-				text = boxText;
-				this.txt = text.split("");
-				this.boxupdate(caretPos, false, 0);
-				_.preventDefault();
+				const txt = MarkDown.gatherBoxText(html.body);
+				// Let the browser handle insertion at cursor position natively.
+				// execCommand('insertText') correctly handles:
+				// - inserting at cursor position
+				// - replacing selected text
+				// - positioning cursor after inserted text
+				document.execCommand("insertText", false, txt);
+				// execCommand doesn't fire keyup, so manually trigger update.
+				// Cursor is already correct, so saveCaretPosition inside
+				// boxupdate will capture the right position.
+				let content = MarkDown.gatherBoxText(box);
+				if (content === "\n") content = "";
+				prevcontent = content;
+				this.txt = content.split("");
+				this.boxupdate(undefined, undefined, undefined, false);
 			} else if (types.includes("text/plain")) {
 				//Allow the paste like normal
 			} else {
