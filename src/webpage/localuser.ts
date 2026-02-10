@@ -1554,6 +1554,58 @@ class Localuser {
 			this.loadGuild(json.guild_id, true);
 		}
 	}
+	async subscribePush() {
+		if (!("PushManager" in window) || !("serviceWorker" in navigator)) return;
+		if (Notification.permission === "denied") return;
+
+		// Only request permission if not yet granted (iOS requires user gesture,
+		// but on desktop this is fine to call here)
+		if (Notification.permission === "default") {
+			const perm = await Notification.requestPermission();
+			if (perm !== "granted") return;
+		}
+
+		const reg = await navigator.serviceWorker.ready;
+
+		// Check if already subscribed
+		let sub = await reg.pushManager.getSubscription();
+		if (!sub) {
+			// Get VAPID public key from push service
+			const vapidResp = await fetch(
+				new URL("/push/vapidkey", window.location.origin).toString(),
+			);
+			if (!vapidResp.ok) {
+				console.warn("[push] Could not fetch VAPID key");
+				return;
+			}
+			const {publicKey} = await vapidResp.json();
+
+			// Convert base64url to Uint8Array
+			const padding = "=".repeat((4 - (publicKey.length % 4)) % 4);
+			const base64 = (publicKey + padding).replace(/-/g, "+").replace(/_/g, "/");
+			const rawData = atob(base64);
+			const outputArray = new Uint8Array(rawData.length);
+			for (let i = 0; i < rawData.length; i++) {
+				outputArray[i] = rawData.charCodeAt(i);
+			}
+
+			sub = await reg.pushManager.subscribe({
+				userVisibleOnly: true,
+				applicationServerKey: outputArray,
+			});
+		}
+
+		// Send subscription to push service
+		await fetch(new URL("/push/subscribe", window.location.origin).toString(), {
+			method: "POST",
+			headers: {
+				"Content-Type": "application/json",
+				Authorization: this.token,
+			},
+			body: JSON.stringify(sub.toJSON()),
+		});
+		console.log("[push] Subscribed successfully");
+	}
 	async init() {
 		const location = window.location.href.split("/");
 		this.buildservers();

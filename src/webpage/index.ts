@@ -107,6 +107,8 @@ if (window.location.pathname.startsWith("/channels")) {
 			if (templateID) {
 				thisUser.passTemplateID(templateID);
 			}
+			// Subscribe to push notifications (non-blocking)
+			thisUser.subscribePush().catch((e: any) => console.warn("[push] subscribe failed:", e));
 		});
 	} catch (e) {
 		console.error(e);

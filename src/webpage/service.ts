@@ -334,6 +334,61 @@ function listenToPort(port: MessagePort) {
 		ports.delete(port);
 	});
 }
+// --- Web Push Notifications ---
+self.addEventListener("push", (event) => {
+	const e = event as PushEvent;
+	if (!e.data) return;
+	let data: any;
+	try {
+		data = e.data.json();
+	} catch {
+		return;
+	}
+
+	e.waitUntil(
+		(self as any).clients
+			.matchAll({type: "window", includeUncontrolled: true})
+			.then((clients: any[]) => {
+				// Don't show notification if a Fermi window is focused
+				const hasFocused = clients.some(
+					(c: any) => c.visibilityState === "visible",
+				);
+				if (hasFocused) return;
+
+				return (self as any).registration.showNotification(data.title || "Lucky 5L", {
+					body: data.body || "",
+					icon: data.icon || "/logo-192.webp",
+					badge: "/logo-192.webp",
+					data: data.data,
+					tag: data.data?.url || "default",
+				});
+			}),
+	);
+});
+
+self.addEventListener("notificationclick", (event) => {
+	const e = event as NotificationEvent;
+	e.notification.close();
+	const url = e.notification.data?.url || "/channels/@me";
+
+	e.waitUntil(
+		(self as any).clients
+			.matchAll({type: "window"})
+			.then((clients: any[]) => {
+				// Focus existing window if available
+				for (const client of clients) {
+					if ("focus" in client) {
+						client.focus();
+						client.navigate(url);
+						return;
+					}
+				}
+				// Otherwise open new window
+				return (self as any).clients.openWindow(url);
+			}),
+	);
+});
+
 self.addEventListener("message", (message) => {
 	const data = message.data;
 	switch (data.code) {
