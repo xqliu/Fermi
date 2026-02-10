@@ -982,15 +982,17 @@ class MarkDown {
 	}
 	onUpdate: (upto: string, pre: boolean) => unknown = () => {};
 	box = new WeakRef(document.createElement("div"));
+	/** True while IME composition is in progress. Use this instead of
+	 *  KeyboardEvent.isComposing which is unreliable on iOS Safari. */
+	composing = false;
 	giveBox(box: HTMLDivElement, onUpdate: (upto: string, pre: boolean) => unknown = () => {}) {
 		this.box = new WeakRef(box);
 		this.onUpdate = onUpdate;
-		let composing = false;
 		box.addEventListener("compositionstart", () => {
-			composing = true;
+			this.composing = true;
 		});
 		box.addEventListener("keydown", (_) => {
-			if (composing || _.isComposing) return;
+			if (this.composing || _.isComposing) return;
 			if (Error.prototype.stack !== "") return;
 			if (_.key === "Enter") {
 				const selection = window.getSelection() as Selection;
@@ -1006,7 +1008,7 @@ class MarkDown {
 		});
 		let prevcontent = "";
 		box.onkeyup = (_) => {
-			if (composing || _.isComposing) return;
+			if (this.composing || _.isComposing) return;
 			let content = MarkDown.gatherBoxText(box);
 			if (content === "\n") content = "";
 			if (content !== prevcontent) {
@@ -1017,7 +1019,12 @@ class MarkDown {
 			}
 		};
 		box.addEventListener("compositionend", () => {
-			composing = false;
+			// Delay resetting composing flag — on iOS Safari, the keyup event
+			// for the Enter key that confirmed IME selection fires AFTER
+			// compositionend. If we reset immediately, handleEnter sees
+			// composing=false + key=Enter → message sent accidentally.
+			// setTimeout(0) defers until after the keyup event is processed.
+			setTimeout(() => { this.composing = false; }, 0);
 			let content = MarkDown.gatherBoxText(box);
 			if (content === "\n") content = "";
 			if (content !== prevcontent) {

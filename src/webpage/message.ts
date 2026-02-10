@@ -931,6 +931,7 @@ class Message extends SnowFlake {
 				const md = new MarkDown(this.content.rawString, this.owner, {keep: true});
 				area.append(md.makeHTML());
 				area.addEventListener("keyup", (event) => {
+					if (event.isComposing || md.composing) return;
 					if (this.localuser.keyup(event)) return;
 					if (event.key === "Enter" && !event.shiftKey) {
 						this.edit(md.rawString);
@@ -939,6 +940,7 @@ class Message extends SnowFlake {
 					}
 				});
 				area.addEventListener("keydown", (event) => {
+					if (event.isComposing || md.composing) return;
 					this.localuser.keydown(event);
 					if (event.key === "Enter" && !event.shiftKey) event.preventDefault();
 					if (event.key === "Escape") {
