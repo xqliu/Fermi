@@ -1565,25 +1565,39 @@ class Localuser {
 			if (perm !== "granted") return;
 		}
 
+		// Ensure SW is registered and active.
+		// iOS aggressively terminates SWs — navigator.serviceWorker.ready may
+		// resolve with a registration where active/installing/waiting are all null.
+		// In that case, re-register to wake the SW back up.
 		let reg = await navigator.serviceWorker.ready;
 
-		// iOS PWA: serviceWorker.ready may resolve before SW is truly active.
-		// Wait for active state explicitly.
 		if (!reg.active) {
-			// SW might be installing — wait for it to activate
-			const sw = reg.installing || reg.waiting;
-			if (sw) {
-				await new Promise<void>((resolve) => {
-					sw.addEventListener("statechange", () => {
-						if (sw.state === "activated") resolve();
+			// Try to find a SW in any state first
+			let sw = reg.installing || reg.waiting;
+
+			if (!sw) {
+				// All states null — iOS killed the SW. Re-register it.
+				console.log("[push] SW terminated by OS, re-registering...");
+				reg = await navigator.serviceWorker.register("/service.js", { scope: "/" });
+				sw = reg.installing || reg.waiting || reg.active;
+			}
+
+			if (sw && sw.state !== "activated") {
+				// Wait for activation
+				await new Promise<void>((resolve, reject) => {
+					const timeout = setTimeout(() => reject(new Error("SW 激活超时")), 10000);
+					sw!.addEventListener("statechange", () => {
+						if (sw!.state === "activated") { clearTimeout(timeout); resolve(); }
+						if (sw!.state === "redundant") { clearTimeout(timeout); reject(new Error("SW 被替换")); }
 					});
-					if (sw.state === "activated") resolve();
+					if (sw!.state === "activated") { clearTimeout(timeout); resolve(); }
 				});
-				// Re-fetch registration after activation
+				// Re-fetch ready registration
 				reg = await navigator.serviceWorker.ready;
 			}
+
 			if (!reg.active) {
-				throw new Error("Service Worker 未能激活，请关闭 app 重新打开再试");
+				throw new Error("Service Worker 未能激活");
 			}
 		}
 
