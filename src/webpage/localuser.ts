@@ -2644,6 +2644,88 @@ class Localuser {
 			update.addButtonInput("", I18n.localuser.clearCache(), () => {
 				SW.forceClear();
 			});
+
+			// Push Notification Status & Toggle
+			const pushSection = update.addSubForm("推送通知", () => {}, {noRecurse: true});
+			const pushStatus = document.createElement("span");
+			pushStatus.style.display = "block";
+			pushStatus.style.marginBottom = "8px";
+
+			const updatePushStatus = async () => {
+				if (!("PushManager" in window) || !("serviceWorker" in navigator)) {
+					pushStatus.textContent = "❌ 此浏览器不支持推送";
+					return;
+				}
+				if (Notification.permission === "denied") {
+					pushStatus.textContent = "🚫 通知权限已被拒绝（需在浏览器设置中开启）";
+					return;
+				}
+				if (Notification.permission === "default") {
+					pushStatus.textContent = "⚪ 未开启";
+					return;
+				}
+				try {
+					const reg = await navigator.serviceWorker.ready;
+					const sub = await reg.pushManager.getSubscription();
+					if (sub) {
+						pushStatus.textContent = "✅ 推送已开启（DM 和 @提及 会收到通知）";
+					} else {
+						pushStatus.textContent = "⚪ 权限已授权，但未订阅";
+					}
+				} catch {
+					pushStatus.textContent = "⚠️ 无法获取状态";
+				}
+			};
+			updatePushStatus();
+
+			pushSection.after(pushStatus);
+
+			update.addButtonInput("", "开启推送通知", async () => {
+				try {
+					await this.subscribePush();
+					await updatePushStatus();
+					const d = new Dialog("");
+					d.options.addTitle("✅ 推送通知已开启");
+					d.show();
+				} catch (e: any) {
+					const d = new Dialog("");
+					d.options.addTitle("❌ 开启失败: " + (e?.message || e));
+					d.show();
+				}
+			});
+
+			update.addButtonInput("", "关闭推送通知", async () => {
+				try {
+					if ("serviceWorker" in navigator) {
+						const reg = await navigator.serviceWorker.ready;
+						const sub = await reg.pushManager.getSubscription();
+						if (sub) {
+							// Unsubscribe from browser
+							await sub.unsubscribe();
+							// Remove from server
+							await fetch(
+								new URL("/push/subscribe", window.location.origin).toString(),
+								{
+									method: "DELETE",
+									headers: {
+										"Content-Type": "application/json",
+										Authorization: this.token,
+									},
+									body: JSON.stringify({endpoint: sub.endpoint}),
+								},
+							);
+						}
+					}
+					await updatePushStatus();
+					const d = new Dialog("");
+					d.options.addTitle("推送通知已关闭");
+					d.show();
+				} catch (e: any) {
+					const d = new Dialog("");
+					d.options.addTitle("❌ 关闭失败: " + (e?.message || e));
+					d.show();
+				}
+			});
 		}
 		{
 			const security = settings.addButton(I18n.localuser.accountSettings());
