@@ -1566,38 +1566,28 @@ class Localuser {
 		}
 
 		// Ensure SW is registered and active.
-		// iOS aggressively terminates SWs — navigator.serviceWorker.ready may
-		// resolve with a registration where active/installing/waiting are all null.
-		// In that case, re-register to wake the SW back up.
-		let reg = await navigator.serviceWorker.ready;
+		// Don't rely on navigator.serviceWorker.ready alone — on iOS PWA:
+		// 1. Fresh install: SW.start() may not have finished registering yet
+		// 2. Re-add PWA: all registrations wiped, ready never resolves
+		// 3. iOS kills SW: ready resolves but active is null
+		// Solution: always register (idempotent) and wait for active state.
+		let reg = await navigator.serviceWorker.register("/service.js", { scope: "/" });
 
 		if (!reg.active) {
-			// Try to find a SW in any state first
-			let sw = reg.installing || reg.waiting;
-
-			if (!sw) {
-				// All states null — iOS killed the SW. Re-register it.
-				console.log("[push] SW terminated by OS, re-registering...");
-				reg = await navigator.serviceWorker.register("/service.js", { scope: "/" });
-				sw = reg.installing || reg.waiting || reg.active;
-			}
-
-			if (sw && sw.state !== "activated") {
-				// Wait for activation
+			const sw = reg.installing || reg.waiting;
+			if (sw) {
 				await new Promise<void>((resolve, reject) => {
-					const timeout = setTimeout(() => reject(new Error("SW 激活超时")), 10000);
-					sw!.addEventListener("statechange", () => {
-						if (sw!.state === "activated") { clearTimeout(timeout); resolve(); }
-						if (sw!.state === "redundant") { clearTimeout(timeout); reject(new Error("SW 被替换")); }
+					const timeout = setTimeout(() => reject(new Error("SW 激活超时（10s）")), 10000);
+					if (sw.state === "activated") { clearTimeout(timeout); resolve(); return; }
+					sw.addEventListener("statechange", () => {
+						if (sw.state === "activated") { clearTimeout(timeout); resolve(); }
+						if (sw.state === "redundant") { clearTimeout(timeout); reject(new Error("SW 被替换")); }
 					});
-					if (sw!.state === "activated") { clearTimeout(timeout); resolve(); }
 				});
-				// Re-fetch ready registration
 				reg = await navigator.serviceWorker.ready;
-			}
-
-			if (!reg.active) {
-				throw new Error("Service Worker 未能激活");
+			} else {
+				// No SW in any state after register() — shouldn't happen
+				throw new Error("SW 注册失败：无 installing/waiting/active");
 			}
 		}
 
