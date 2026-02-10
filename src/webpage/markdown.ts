@@ -1287,6 +1287,14 @@ function saveCaretPosition(
 
 		let len = 0;
 
+		// Special case: focusNode IS the context element itself
+		// (happens when cursor is at end of box, or box has no text nodes)
+		if (focusNode === context) {
+			for (let i = 0; i < focusOffset && i < context.childNodes.length; i++) {
+				len += getNodeTextLength(context.childNodes[i], txtLengthFunc);
+			}
+		} else {
+
 		// Walk all nodes in context in document order until we reach the focus point
 		function countCharsUpToCursor(node: Node): boolean {
 			if (node === focusNode) {
@@ -1339,6 +1347,8 @@ function saveCaretPosition(
 		for (const child of Array.from(context.childNodes)) {
 			if (countCharsUpToCursor(child)) break;
 		}
+
+		} // end else (focusNode !== context)
 
 		if (computedLength !== undefined) {
 			len = computedLength;
