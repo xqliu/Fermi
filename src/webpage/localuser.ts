@@ -1565,7 +1565,27 @@ class Localuser {
 			if (perm !== "granted") return;
 		}
 
-		const reg = await navigator.serviceWorker.ready;
+		let reg = await navigator.serviceWorker.ready;
+
+		// iOS PWA: serviceWorker.ready may resolve before SW is truly active.
+		// Wait for active state explicitly.
+		if (!reg.active) {
+			// SW might be installing — wait for it to activate
+			const sw = reg.installing || reg.waiting;
+			if (sw) {
+				await new Promise<void>((resolve) => {
+					sw.addEventListener("statechange", () => {
+						if (sw.state === "activated") resolve();
+					});
+					if (sw.state === "activated") resolve();
+				});
+				// Re-fetch registration after activation
+				reg = await navigator.serviceWorker.ready;
+			}
+			if (!reg.active) {
+				throw new Error("Service Worker 未能激活，请关闭 app 重新打开再试");
+			}
+		}
 
 		// Check if already subscribed
 		let sub = await reg.pushManager.getSubscription();
