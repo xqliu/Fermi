@@ -18,8 +18,18 @@ import "./oauth2/auth.js";
 import "./audio/page.js";
 import "./404.js";
 
-if (window.location.pathname === "/app") {
-	window.location.pathname = "/channels/@me";
+if (window.location.pathname === "/app" || window.location.pathname === "/") {
+	// Check if user is logged in before redirecting
+	try {
+		const info = JSON.parse(localStorage.getItem("userinfos") || "{}");
+		if (info.currentuser && info.users && Object.keys(info.users).length > 0) {
+			window.location.pathname = "/channels/@me";
+		} else {
+			window.location.pathname = "/login";
+		}
+	} catch {
+		window.location.pathname = "/login";
+	}
 }
 export interface CustomHTMLDivElement extends HTMLDivElement {
 	markdown: MarkDown;
