@@ -2645,45 +2645,31 @@ class Localuser {
 				SW.forceClear();
 			});
 
-			// Push Notification Status & Toggle
-			const pushSection = update.addSubForm("推送通知", () => {}, {noRecurse: true});
-			const pushStatus = document.createElement("span");
-			pushStatus.style.display = "block";
-			pushStatus.style.marginBottom = "8px";
-
-			const updatePushStatus = async () => {
-				if (!("PushManager" in window) || !("serviceWorker" in navigator)) {
-					pushStatus.textContent = "❌ 此浏览器不支持推送";
-					return;
-				}
-				if (Notification.permission === "denied") {
-					pushStatus.textContent = "🚫 通知权限已被拒绝（需在浏览器设置中开启）";
-					return;
-				}
-				if (Notification.permission === "default") {
-					pushStatus.textContent = "⚪ 未开启";
-					return;
-				}
+			// Push Notification Toggle
+			let pushLabel = "推送通知: 检查中...";
+			const getPushStatus = async (): Promise<string> => {
+				if (!("PushManager" in window) || !("serviceWorker" in navigator))
+					return "推送通知: ❌ 浏览器不支持";
+				if (Notification.permission === "denied")
+					return "推送通知: 🚫 已被拒绝（需在浏览器设置中开启）";
+				if (Notification.permission === "default") return "推送通知: ⚪ 未开启";
 				try {
 					const reg = await navigator.serviceWorker.ready;
 					const sub = await reg.pushManager.getSubscription();
-					if (sub) {
-						pushStatus.textContent = "✅ 推送已开启（DM 和 @提及 会收到通知）";
-					} else {
-						pushStatus.textContent = "⚪ 权限已授权，但未订阅";
-					}
+					return sub
+						? "推送通知: ✅ 已开启（DM + @提及）"
+						: "推送通知: ⚪ 权限已授权但未订阅";
 				} catch {
-					pushStatus.textContent = "⚠️ 无法获取状态";
+					return "推送通知: ⚠️ 状态未知";
 				}
 			};
-			updatePushStatus();
-
-			pushSection.after(pushStatus);
+			getPushStatus().then((s) => {
+				pushLabel = s;
+			});
 
 			update.addButtonInput("", "开启推送通知", async () => {
 				try {
 					await this.subscribePush();
-					await updatePushStatus();
 					const d = new Dialog("");
 					d.options.addTitle("✅ 推送通知已开启");
 					d.show();
@@ -2700,9 +2686,7 @@ class Localuser {
 						const reg = await navigator.serviceWorker.ready;
 						const sub = await reg.pushManager.getSubscription();
 						if (sub) {
-							// Unsubscribe from browser
 							await sub.unsubscribe();
-							// Remove from server
 							await fetch(
 								new URL("/push/subscribe", window.location.origin).toString(),
 								{
@@ -2716,7 +2700,6 @@ class Localuser {
 							);
 						}
 					}
-					await updatePushStatus();
 					const d = new Dialog("");
 					d.options.addTitle("推送通知已关闭");
 					d.show();
