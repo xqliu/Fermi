@@ -2138,10 +2138,10 @@ class Localuser {
 				full.hide();
 				if ("template" in e) delete e.template;
 				let code: string;
-				if (URL.canParse(template.value)) {
+				if (URL.canParse(template.value) && new URL(template.value).protocol.startsWith("http")) {
 					const url = new URL(template.value);
 					code = url.pathname.split("/").at(-1) as string;
-					if (url.host === "discord.com") {
+					if (url.host === "discord.com" || url.host === "discord.new") {
 						code = "discord:" + code;
 					}
 				} else {
