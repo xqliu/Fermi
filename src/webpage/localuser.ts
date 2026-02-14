@@ -1269,6 +1269,7 @@ class Localuser {
 			const counts = new Map<string, number>();
 			for (const thing of list.d.ops[0].items) {
 				if ("member" in thing) {
+					if (this.userMap.get(thing.member.id)?.members.has(guild)) continue;
 					await Member.new(thing.member, guild);
 				} else {
 					counts.set(thing.group.id, thing.group.count);
