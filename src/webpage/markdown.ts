@@ -126,6 +126,7 @@ class MarkDown {
 			return Array.from(span.childNodes).at(-1);
 		}
 		for (let i = 0; i < txt.length; i++) {
+			const isSpace = /^\s$/;
 			if (txt[i] === "\n" || i === 0) {
 				let first = i === 0;
 				if (first) {
@@ -136,22 +137,22 @@ class MarkDown {
 
 				if (txt[i + 1] === "#") {
 					if (txt[i + 2] === "#") {
-						if (txt[i + 3] === "#" && txt[i + 4] === " ") {
+						if (txt[i + 3] === "#" && txt[i + 4]?.match(isSpace)) {
 							element = document.createElement("h3");
 							keepys = "### ";
 							i += 5;
-						} else if (txt[i + 3] === " ") {
+						} else if (txt[i + 3]?.match(isSpace)) {
 							element = document.createElement("h2");
 							element.classList.add("h2md");
 							keepys = "## ";
 							i += 4;
 						}
-					} else if (txt[i + 2] === " ") {
+					} else if (txt[i + 2]?.match(isSpace)) {
 						element = document.createElement("h1");
 						keepys = "# ";
 						i += 3;
 					}
-				} else if (txt[i + 1] === ">" && txt[i + 2] === " ") {
+				} else if (txt[i + 1] === ">" && txt[i + 2]?.match(isSpace)) {
 					element = document.createElement("div");
 					const line = document.createElement("div");
 					line.classList.add("quoteline");
