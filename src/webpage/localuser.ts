@@ -94,6 +94,8 @@ class Localuser {
 	ws: WebSocket | undefined;
 	connectionSucceed = 0;
 	errorBackoff = 0;
+	private reconnectTimeout: ReturnType<typeof setTimeout> | undefined;
+	private reconnectCountdown: ReturnType<typeof setInterval> | undefined;
 	channelids: Map<string, Channel> = new Map();
 	readonly userMap: Map<string, User> = new Map();
 	voiceFactory?: VoiceFactory;
@@ -116,6 +118,7 @@ class Localuser {
 		thisUser.unload();
 		thisUser.swapped = true;
 		const loading = document.getElementById("loading") as HTMLDivElement;
+		(document.getElementById("reconnect-banner") as HTMLElement)?.classList.remove("visible");
 		loading.classList.remove("doneloading");
 		loading.classList.add("loading");
 
@@ -340,7 +343,7 @@ class Localuser {
 		this.channelids.clear();
 		this.inrelation.clear();
 		this.userMap.clear();
-		this.queryBlog();
+		// queryBlog() disabled: fetches from upstream blog.fermi.chat, not relevant for self-hosted
 		this.guildFolders = ready.d.user_settings.guild_folders;
 		document.body.style.setProperty("--view-rest", I18n.message.viewrest());
 		this.initialized = true;
@@ -604,28 +607,41 @@ class Localuser {
 				return;
 			}
 			this.unload();
-			(document.getElementById("loading") as HTMLElement).classList.remove("doneloading");
-			(document.getElementById("loading") as HTMLElement).classList.add("loading");
 			this.fetchingmembers.clear();
 			this.noncemap.clear();
 			this.noncebuild.clear();
 			const loaddesc = document.getElementById("load-desc") as HTMLElement;
+			const reconnectBanner = document.getElementById("reconnect-banner") as HTMLElement;
+			const reconnectText = document.getElementById("reconnect-text") as HTMLElement;
 			if (
 				(event.code > 1000 && event.code < 1016) ||
 				wsCodesRetry.has(event.code) ||
 				event.code == 4041
 			) {
+				// Reconnectable: show banner, keep chat UI visible
+				// Clear any pending reconnect from a previous disconnect
+				if (this.reconnectTimeout) clearTimeout(this.reconnectTimeout);
+				if (this.reconnectCountdown) clearInterval(this.reconnectCountdown);
+				reconnectBanner.classList.add("visible");
 				if (this.connectionSucceed !== 0 && Date.now() > this.connectionSucceed + 20000) {
 					this.errorBackoff = 0;
 				} else this.errorBackoff++;
 				this.connectionSucceed = 0;
 
-				loaddesc.innerHTML = "";
-				loaddesc.append(
-					new MarkDown(
-						I18n.errorReconnect(Math.round(0.2 + this.errorBackoff * 2.8) + ""),
-					).makeHTML(),
-				);
+				const delayMs = 200 + this.errorBackoff * 2800;
+				let remaining = Math.ceil(delayMs / 1000);
+				reconnectText.textContent = `正在重新连接... (${remaining}s)`;
+				this.reconnectCountdown = setInterval(() => {
+					remaining--;
+					if (remaining <= 0) {
+						clearInterval(this.reconnectCountdown);
+						this.reconnectCountdown = undefined;
+						reconnectText.textContent = "正在重新连接...";
+					} else {
+						reconnectText.textContent = `正在重新连接... (${remaining}s)`;
+					}
+				}, 1000);
+
 				switch (
 					this.errorBackoff //try to recover from bad domain
 				) {
@@ -661,24 +677,36 @@ class Localuser {
 						break;
 					}
 				}
-				setTimeout(
+				this.reconnectTimeout = setTimeout(
 					() => {
+						clearInterval(this.reconnectCountdown);
+						this.reconnectCountdown = undefined;
+						this.reconnectTimeout = undefined;
 						if (this.swapped) return;
-						loaddesc.textContent = I18n.retrying();
+						reconnectText.textContent = "正在重新连接...";
 						this.initwebsocket().then(async () => {
-							console.log("FINE ME");
 							this.loaduser();
-							await this.init();
-							const loading = document.getElementById("loading") as HTMLElement;
-							loading.classList.add("doneloading");
-							loading.classList.remove("loading");
-							loaddesc.textContent = I18n.loaded();
-							console.log("done loading");
+							try {
+								await this.init();
+							} catch (e) {
+								console.error("[reconnect] init() failed:", e);
+							} finally {
+								reconnectBanner.classList.remove("visible");
+							}
+							console.log("done reconnecting");
+						}).catch((e) => {
+							console.error("[reconnect] initwebsocket() failed:", e);
+							reconnectBanner.classList.remove("visible");
 						});
 					},
-					200 + this.errorBackoff * 2800,
+					delayMs,
 				);
-			} else loaddesc.textContent = I18n.unableToConnect();
+			} else {
+				// Unrecoverable: show full-screen loading with error
+				(document.getElementById("loading") as HTMLElement).classList.remove("doneloading");
+				(document.getElementById("loading") as HTMLElement).classList.add("loading");
+				loaddesc.textContent = I18n.unableToConnect();
+			}
 		});
 		console.log("here?");
 		await promise;

@@ -97,7 +97,7 @@ async function checkCache() {
 		const text = await data.clone().text();
 		console.log(text, lastcache);
 		if (lastcache !== text) {
-			deleteoldcache();
+			await deleteoldcache();
 			putInCache("/getupdates", data);
 			await downloadAllFiles();
 			tryToClose();
