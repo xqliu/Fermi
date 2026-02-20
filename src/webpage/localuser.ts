@@ -116,6 +116,7 @@ class Localuser {
 		thisUser.unload();
 		thisUser.swapped = true;
 		const loading = document.getElementById("loading") as HTMLDivElement;
+		(document.getElementById("reconnect-banner") as HTMLElement)?.classList.remove("visible");
 		loading.classList.remove("doneloading");
 		loading.classList.add("loading");
 
@@ -604,28 +605,27 @@ class Localuser {
 				return;
 			}
 			this.unload();
-			(document.getElementById("loading") as HTMLElement).classList.remove("doneloading");
-			(document.getElementById("loading") as HTMLElement).classList.add("loading");
 			this.fetchingmembers.clear();
 			this.noncemap.clear();
 			this.noncebuild.clear();
 			const loaddesc = document.getElementById("load-desc") as HTMLElement;
+			const reconnectBanner = document.getElementById("reconnect-banner") as HTMLElement;
+			const reconnectText = document.getElementById("reconnect-text") as HTMLElement;
 			if (
 				(event.code > 1000 && event.code < 1016) ||
 				wsCodesRetry.has(event.code) ||
 				event.code == 4041
 			) {
+				// Reconnectable error: show banner instead of full-screen loading
+				reconnectBanner.classList.add("visible");
 				if (this.connectionSucceed !== 0 && Date.now() > this.connectionSucceed + 20000) {
 					this.errorBackoff = 0;
 				} else this.errorBackoff++;
 				this.connectionSucceed = 0;
 
-				loaddesc.innerHTML = "";
-				loaddesc.append(
-					new MarkDown(
-						I18n.errorReconnect(Math.round(0.2 + this.errorBackoff * 2.8) + ""),
-					).makeHTML(),
-				);
+				const delay = Math.round(0.2 + this.errorBackoff * 2.8);
+				reconnectText.textContent = `正在重新连接... (${delay}s)`;
+
 				switch (
 					this.errorBackoff //try to recover from bad domain
 				) {
@@ -664,21 +664,23 @@ class Localuser {
 				setTimeout(
 					() => {
 						if (this.swapped) return;
-						loaddesc.textContent = I18n.retrying();
+						reconnectText.textContent = "正在重新连接...";
 						this.initwebsocket().then(async () => {
 							console.log("FINE ME");
 							this.loaduser();
 							await this.init();
-							const loading = document.getElementById("loading") as HTMLElement;
-							loading.classList.add("doneloading");
-							loading.classList.remove("loading");
-							loaddesc.textContent = I18n.loaded();
-							console.log("done loading");
+							reconnectBanner.classList.remove("visible");
+							console.log("done reconnecting");
 						});
 					},
 					200 + this.errorBackoff * 2800,
 				);
-			} else loaddesc.textContent = I18n.unableToConnect();
+			} else {
+				// Unrecoverable: show full-screen loading with error message
+				(document.getElementById("loading") as HTMLElement).classList.remove("doneloading");
+				(document.getElementById("loading") as HTMLElement).classList.add("loading");
+				loaddesc.textContent = I18n.unableToConnect();
+			}
 		});
 		console.log("here?");
 		await promise;
