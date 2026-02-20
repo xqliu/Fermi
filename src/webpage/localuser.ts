@@ -668,12 +668,8 @@ class Localuser {
 						this.initwebsocket().then(async () => {
 							console.log("FINE ME");
 							this.loaduser();
+							await this.init();
 							reconnectBanner.classList.remove("visible");
-							try {
-								await this.init();
-							} catch (e) {
-								console.error("[reconnect] init failed:", e);
-							}
 							console.log("done reconnecting");
 						});
 					},
