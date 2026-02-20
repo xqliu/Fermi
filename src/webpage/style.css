@@ -1664,23 +1664,6 @@ span.instanceStatus {
 #loading.doneloading {
 	transform: translate(0%, -100%);
 }
-#reconnect-banner {
-	display: none;
-	position: fixed;
-	top: 0;
-	left: 0;
-	right: 0;
-	z-index: 120;
-	background: #f0a500;
-	color: #000;
-	text-align: center;
-	padding: 6px 16px;
-	font-size: 14px;
-	font-weight: 500;
-}
-#reconnect-banner.visible {
-	display: block;
-}
 #loadingdiv {
 	display: none;
 	flex: 0 0 100%; /* push out scroller until loaded */
