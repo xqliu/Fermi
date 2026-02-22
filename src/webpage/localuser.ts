@@ -1,5 +1,6 @@
 import {Guild} from "./guild.js";
 import {Channel} from "./channel.js";
+import {QuickSwitcher} from "./quickswitch.js";
 import {Direct, Group} from "./direct.js";
 import {User} from "./user.js";
 import {createImg, getapiurls, getBulkUsers, installPGet, SW} from "./utils/utils.js";
@@ -96,6 +97,39 @@ class Localuser {
 	errorBackoff = 0;
 	private reconnectTimeout: ReturnType<typeof setTimeout> | undefined;
 	private reconnectCountdown: ReturnType<typeof setInterval> | undefined;
+
+	quickSwitcher: QuickSwitcher | undefined;
+
+	// Network resume listeners (visibilitychange / online / focus)
+	private _networkListenersActive = false;
+	private _reconnecting = false;
+	private _onVisibilityChange = () => {
+		if (document.visibilityState === "visible") this._checkAndReconnect();
+	};
+	private _onNetworkResume = () => this._checkAndReconnect();
+	private _checkAndReconnect() {
+		if (this._reconnecting) return;
+		if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
+			this._reconnecting = true;
+			this.initwebsocket()
+				.then(() => this.loaduser())
+				.catch(console.error)
+				.finally(() => { this._reconnecting = false; });
+		}
+	}
+	private _registerNetworkListeners() {
+		if (this._networkListenersActive) return;
+		document.addEventListener("visibilitychange", this._onVisibilityChange);
+		window.addEventListener("online", this._onNetworkResume);
+		window.addEventListener("focus", this._onNetworkResume);
+		this._networkListenersActive = true;
+	}
+	private _unregisterNetworkListeners() {
+		document.removeEventListener("visibilitychange", this._onVisibilityChange);
+		window.removeEventListener("online", this._onNetworkResume);
+		window.removeEventListener("focus", this._onNetworkResume);
+		this._networkListenersActive = false;
+	}
 	channelids: Map<string, Channel> = new Map();
 	readonly userMap: Map<string, User> = new Map();
 	voiceFactory?: VoiceFactory;
@@ -448,6 +482,7 @@ class Localuser {
 		this.outoffocus();
 		this.guilds = [];
 		this.guildids = new Map();
+		this._unregisterNetworkListeners();
 		if (this.ws) {
 			this.ws.close(4040);
 		}
@@ -472,6 +507,7 @@ class Localuser {
 				(doComp ? "&compress=zlib-stream" : ""),
 		);
 		this.ws = ws;
+		this._registerNetworkListeners();
 		let ds: DecompressionStream;
 		let w: WritableStreamDefaultWriter;
 		let arr: Uint8Array;
@@ -1659,6 +1695,8 @@ class Localuser {
 		console.log("[push] Subscribed successfully");
 	}
 	async init() {
+		this.quickSwitcher = new QuickSwitcher(this);
+		this.quickSwitcher.preload();
 		const location = window.location.href.split("/");
 		this.buildservers();
 		if (location[3] === "channels") {
@@ -2278,6 +2316,7 @@ class Localuser {
 		if (channel) {
 			channel.messageCreate(messagep);
 			this.unreads();
+			this.quickSwitcher?.push(channel);
 		}
 	}
 	unreads(): void {

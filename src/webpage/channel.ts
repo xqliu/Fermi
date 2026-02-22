@@ -2670,6 +2670,7 @@ class Channel extends SnowFlake {
 		this.guild.prevchannel = this;
 		this.guild.perminfo.prevchannel = this.id;
 		this.localuser.channelfocus = this;
+		this.localuser.quickSwitcher?.remove(this);
 
 		if (this.isThread() && !this.member) {
 			this.parent?.createguildHTML();

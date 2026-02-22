@@ -86,7 +86,7 @@ async function checkCache() {
 		lastcache = await promise.text();
 	}
 	console.log(lastcache);
-	return fetch("/getupdates").then(async (data) => {
+	return fetch("/getupdates", { cache: "no-store" }).then(async (data) => {
 		setTimeout(
 			(_: any) => {
 				checkedrecently = false;
