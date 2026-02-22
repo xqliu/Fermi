@@ -92,18 +92,27 @@ export class QuickSwitcher {
 		this.container.innerHTML = "";
 
 		const currentId = this.localuser.channelfocus?.id;
-		let shown = 0;
 		const seen = new Set<string>();
 
-		// recents first (visited channels), then session-only unread extras
+		// Collect all candidates (recents + sessionExtra, deduped)
+		const candidates: Channel[] = [];
 		for (const id of [...this.recents, ...this._sessionExtra]) {
-			if (shown >= MAX_BUBBLES) break;
 			if (id === currentId || seen.has(id)) continue;
 			seen.add(id);
 			const channel = this.localuser.channelids.get(id);
 			if (!channel) continue;
+			candidates.push(channel);
+		}
+
+		// Sort by priority: mentions > hasunreads > plain recents
+		candidates.sort((a, b) => {
+			const pa = a.mentions > 0 ? 2 : a.hasunreads ? 1 : 0;
+			const pb = b.mentions > 0 ? 2 : b.hasunreads ? 1 : 0;
+			return pb - pa; // higher priority first
+		});
+
+		for (const channel of candidates.slice(0, MAX_BUBBLES)) {
 			this.container.appendChild(this.makeBubble(channel));
-			shown++;
 		}
 	}
 
