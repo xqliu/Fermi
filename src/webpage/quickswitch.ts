@@ -67,7 +67,16 @@ export class QuickSwitcher {
 
 	/** Called on messageCreate — surfaces unread channels not yet in recents */
 	push(channel: Channel): void {
-		if (channel === this.localuser.channelfocus) return;
+		if (channel === this.localuser.channelfocus) {
+			// User is currently in this channel (e.g. sending a DM) — add to recents
+			// so it shows as a bubble after they navigate away
+			if (!this.recents.includes(channel.id)) {
+				this.recents.push(channel.id); // append to back, lower priority than explicit navigation
+				if (this.recents.length > MAX_BUBBLES * 2) this.recents.length = MAX_BUBBLES * 2;
+				this._saveStorage();
+			}
+			return; // don't render bubble while user is still here
+		}
 		if (!this.recents.includes(channel.id)) {
 			this.recents.unshift(channel.id);
 			if (this.recents.length > MAX_BUBBLES * 2) this.recents.length = MAX_BUBBLES * 2;
@@ -103,20 +112,29 @@ export class QuickSwitcher {
 		div.classList.add("quick-bubble");
 		div.title = channel.name;
 
-		// Icon
-		div.appendChild(this.buildIcon(channel));
+		// Icon wrapper (for badge positioning)
+		const iconWrap = document.createElement("div");
+		iconWrap.classList.add("quick-bubble-icon-wrap");
+		iconWrap.appendChild(this.buildIcon(channel));
 
 		// Badge: number for mentions, dot for plain unreads
 		if (channel.mentions > 0) {
 			const badge = document.createElement("div");
 			badge.classList.add("bubble-badge");
 			badge.textContent = channel.mentions > 9 ? "9+" : String(channel.mentions);
-			div.appendChild(badge);
+			iconWrap.appendChild(badge);
 		} else if (channel.hasunreads) {
 			const dot = document.createElement("div");
 			dot.classList.add("bubble-badge", "bubble-badge-dot");
-			div.appendChild(dot);
+			iconWrap.appendChild(dot);
 		}
+		div.appendChild(iconWrap);
+
+		// Channel name label
+		const label = document.createElement("div");
+		label.classList.add("quick-bubble-label");
+		label.textContent = channel.name ?? "";
+		div.appendChild(label);
 
 		// Click: navigate
 		div.addEventListener("click", () => {
@@ -129,28 +147,53 @@ export class QuickSwitcher {
 	}
 
 	private buildIcon(channel: Channel): HTMLElement {
-		// DM / Group DM: use existing makeIcon()
-		if (typeof (channel as any).makeIcon === "function") {
-			const icon = (channel as any).makeIcon() as HTMLElement;
-			icon.classList.add("quick-bubble-icon");
-			return icon;
+		// DM channels (Group extends Channel, has makeIcon())
+		const ch = channel as any;
+		if (typeof ch.makeIcon === "function") {
+			// type=1: single DM — grab avatar img directly for clean sizing
+			if (ch.type === 1 && Array.isArray(ch.users) && ch.users[0]) {
+				const user = ch.users[0];
+				const src = typeof user.getpfpsrc === "function" ? user.getpfpsrc() : null;
+				if (src) {
+					const img = document.createElement("img");
+					img.src = src;
+					img.alt = user.name ?? "";
+					img.classList.add("quick-bubble-icon");
+					img.onerror = () => {
+						// fallback if avatar fails to load
+						const fb = document.createElement("div");
+						fb.classList.add("quick-bubble-fallback");
+						fb.textContent = (user.name?.[0] ?? "?").toUpperCase();
+						img.replaceWith(fb);
+					};
+					return img;
+				}
+			}
+			// Group DM: wrap makeIcon() output
+			const wrap = document.createElement("div");
+			wrap.classList.add("quick-bubble-icon");
+			wrap.style.cssText = "width:32px;height:32px;border-radius:50%;overflow:hidden;flex-shrink:0;";
+			const icon = ch.makeIcon() as HTMLElement;
+			icon.style.cssText = "width:32px;height:32px;";
+			wrap.appendChild(icon);
+			return wrap;
 		}
 
-		// Guild channel: unique coloured circle with channel initial
+		// Guild channel: show guild icon
+		const guild = ch.guild;
+		const guildIcon = guild?.properties?.icon ?? guild?.icon;
+		if (guild && guildIcon) {
+			const img = document.createElement("img");
+			img.src = `${guild.info.cdn}/icons/${guild.id}/${guildIcon}.png?size=64`;
+			img.alt = guild.properties?.name ?? "";
+			img.classList.add("quick-bubble-icon");
+			return img;
+		}
+
+		// Fallback: coloured circle with guild/channel initial
 		const span = document.createElement("div");
 		span.classList.add("quick-bubble-fallback");
-		span.textContent = (channel.name?.[0] ?? "#").toUpperCase();
-		span.style.background = QuickSwitcher._channelColor(channel.id);
+		span.textContent = ((guild?.properties?.name ?? channel.name)?.[0] ?? "#").toUpperCase();
 		return span;
-	}
-
-	/** Deterministic color from channel ID — same channel always gets same color */
-	private static _channelColor(id: string): string {
-		let hash = 0;
-		for (let i = 0; i < id.length; i++) {
-			hash = (hash * 31 + id.charCodeAt(i)) >>> 0;
-		}
-		const hue = hash % 360;
-		return `hsl(${hue}, 55%, 45%)`;
 	}
 }

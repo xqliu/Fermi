@@ -4867,11 +4867,14 @@ img.error::after {
 
 /* ── Quick-switch bubbles ───────────────────────────────────── */
 #quick-bubbles {
-	display: none; /* desktop: hidden */
-	flex-direction: row;
+	display: none;
+	position: fixed;
+	right: 8px;
+	bottom: calc(72px + env(safe-area-inset-bottom, 0px));
+	flex-direction: column;
 	gap: 6px;
-	align-items: center;
-	pointer-events: auto;
+	z-index: 500;
+	pointer-events: none;
 }
 @media screen and (max-width: 600px) {
 	#quick-bubbles {
@@ -4879,9 +4882,11 @@ img.error::after {
 	}
 }
 .quick-bubble {
-	width: 28px;
-	height: 28px;
-	border-radius: 50%;
+	width: 48px;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 2px;
 	cursor: pointer;
 	position: relative;
 	pointer-events: auto;
@@ -4894,13 +4899,30 @@ img.error::after {
 	opacity: 1;
 	transform: scale(0.88);
 }
+.quick-bubble-label {
+	font-size: 9px;
+	color: #fff;
+	text-align: center;
+	width: 48px;
+	overflow: hidden;
+	white-space: nowrap;
+	text-overflow: ellipsis;
+	text-shadow: 0 1px 3px rgba(0,0,0,0.8);
+	line-height: 1.2;
+}
 @keyframes bubble-in {
-	from { transform: scale(0.4) translateX(-16px); opacity: 0; }
-	to   { transform: scale(1)   translateX(0);     opacity: 1; }
+	from { transform: scale(0.4) translateX(16px); opacity: 0; }
+	to   { transform: scale(1)   translateX(0);    opacity: 1; }
+}
+.quick-bubble-icon-wrap {
+	position: relative;
+	width: 32px;
+	height: 32px;
+	flex-shrink: 0;
 }
 .quick-bubble-icon {
-	width: 28px;
-	height: 28px;
+	width: 32px;
+	height: 32px;
 	object-fit: cover;
 	display: block;
 	border-radius: 50%;
@@ -4908,21 +4930,21 @@ img.error::after {
 }
 .quick-bubble-icon img,
 .quick-bubble img {
-	width: 100%;
-	height: 100%;
+	width: 32px;
+	height: 32px;
 	object-fit: cover;
 	border-radius: 50%;
 	overflow: hidden;
 }
 .quick-bubble-fallback {
-	width: 28px;
-	height: 28px;
+	width: 32px;
+	height: 32px;
 	display: flex;
 	align-items: center;
 	justify-content: center;
 	background: var(--accent-color, #5865f2);
 	color: #fff;
-	font-size: 12px;
+	font-size: 13px;
 	font-weight: 700;
 	border-radius: 50%;
 }
