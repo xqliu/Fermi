@@ -182,7 +182,7 @@ export class QuickSwitcher {
 		// Guild channel: show guild icon
 		const guild = ch.guild;
 		const guildIcon = guild?.properties?.icon ?? guild?.icon;
-		if (guild && guildIcon) {
+		if (guild && guildIcon && guild.info?.cdn) {
 			const img = document.createElement("img");
 			img.src = `${guild.info.cdn}/icons/${guild.id}/${guildIcon}.png?size=64`;
 			img.alt = guild.properties?.name ?? "";
