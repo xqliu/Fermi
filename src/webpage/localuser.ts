@@ -1696,7 +1696,7 @@ class Localuser {
 	}
 	async init() {
 		this.quickSwitcher = new QuickSwitcher(this);
-		this.quickSwitcher.preload();
+		this.quickSwitcher.refreshBadges();
 		const location = window.location.href.split("/");
 		this.buildservers();
 		if (location[3] === "channels") {

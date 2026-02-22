@@ -2653,6 +2653,7 @@ class Channel extends SnowFlake {
 			this.myhtml.classList.add("viewChannel");
 		}
 		const id = ++Channel.genid;
+		const prevFocus = this.localuser.channelfocus;
 
 		if (this.localuser.channelfocus && this.localuser.channelfocus !== this) {
 			this.localuser.channelfocus.infinite.delete();
@@ -2670,7 +2671,7 @@ class Channel extends SnowFlake {
 		this.guild.prevchannel = this;
 		this.guild.perminfo.prevchannel = this.id;
 		this.localuser.channelfocus = this;
-		this.localuser.quickSwitcher?.remove(this);
+		this.localuser.quickSwitcher?.onChannelFocus(prevFocus ?? null, this);
 
 		if (this.isThread() && !this.member) {
 			this.parent?.createguildHTML();
