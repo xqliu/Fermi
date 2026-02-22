@@ -18,8 +18,8 @@ async function downloadAllFiles() {
 					if (lpath.endsWith(".map") && !dev) {
 						return;
 					}
-					const res = await fetch(lpath);
-					putInCache(new URL(path, self.location.origin), res);
+					const res = await fetch(lpath, { cache: "no-store" });
+					putInCache(new URL(lpath, self.location.origin), res);
 				} else {
 					await cachePath(path + "/" + name, thing);
 				}
