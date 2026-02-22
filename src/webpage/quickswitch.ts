@@ -77,11 +77,11 @@ export class QuickSwitcher {
 			}
 			return; // don't render bubble while user is still here
 		}
-		if (!this.recents.includes(channel.id)) {
-			this.recents.unshift(channel.id);
-			if (this.recents.length > MAX_BUBBLES * 2) this.recents.length = MAX_BUBBLES * 2;
-			this._saveStorage();
-		}
+		// New message = promote to front, bumping the oldest bubble if full
+		this.recents = this.recents.filter(id => id !== channel.id);
+		this.recents.unshift(channel.id);
+		if (this.recents.length > MAX_BUBBLES * 2) this.recents.length = MAX_BUBBLES * 2;
+		this._saveStorage();
 		this.render();
 	}
 
