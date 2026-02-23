@@ -111,9 +111,27 @@ class Localuser {
 		if (this._reconnecting) return;
 		// Only reconnect if WS is CLOSED or CLOSING — not if it's still CONNECTING
 		if (!this.ws || this.ws.readyState === WebSocket.CLOSED || this.ws.readyState === WebSocket.CLOSING) {
+			// Cancel any pending scheduled reconnect to avoid duplicate WS connections
+			if (this.reconnectTimeout) {
+				clearTimeout(this.reconnectTimeout);
+				this.reconnectTimeout = undefined;
+			}
+			if (this.reconnectCountdown) {
+				clearInterval(this.reconnectCountdown);
+				this.reconnectCountdown = undefined;
+			}
 			this._reconnecting = true;
 			this.initwebsocket()
-				.then(() => this.loaduser())
+				.then(async () => {
+					this.loaduser();
+					try {
+						await this.init();
+					} catch (e) {
+						console.error("[_checkAndReconnect] init() failed:", e);
+					} finally {
+						(document.getElementById("reconnect-banner") as HTMLElement)?.classList.remove("visible");
+					}
+				})
 				.catch(console.error)
 				.finally(() => { this._reconnecting = false; });
 		}
