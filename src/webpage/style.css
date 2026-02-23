@@ -4255,7 +4255,7 @@ fieldset input[type="radio"] {
 		box-sizing: border-box;
 	}
 	.channelnamediv {
-		padding: 0;
+		padding: env(safe-area-inset-top, 0px) 0 0 0;
 		background: var(--primary-bg);
 		border-bottom: none;
 	}
