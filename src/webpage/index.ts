@@ -301,6 +301,9 @@ if (window.location.pathname.startsWith("/channels")) {
 				searchBox.parentElement!.classList.remove("searching");
 				searchX.classList.remove("svg-plainx");
 				thisUser.mSearch("");
+			} else if (searchBox.parentElement!.classList.contains("searching")) {
+				// Already open but empty — close it
+				searchBox.parentElement!.classList.remove("searching");
 			} else {
 				searchBox.parentElement!.classList.add("searching");
 			}
