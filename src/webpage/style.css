@@ -4232,7 +4232,7 @@ fieldset input[type="radio"] {
 @media screen and (max-width: 600px) {
 	.searching {
 		position: relative;
-		flex: 1 1 auto;
+		flex: 0 1 160px;
 		min-width: 0;
 		#searchBox {
 			width: 100%;
