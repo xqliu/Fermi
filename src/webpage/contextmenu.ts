@@ -375,25 +375,22 @@ class Contextmenu<x, y> {
 				(event: TouchEvent) => {
 					x = event.touches[0].pageX;
 					y = event.touches[0].pageY;
-					// Clear any existing text selection so we start clean
-					const sel = window.getSelection();
-					const hadSelection = sel && sel.toString().length > 0;
 					if (event.touches.length > 1) {
 						event.preventDefault();
 						event.stopImmediatePropagation();
 						this.makemenu(event.touches[0].clientX, event.touches[0].clientY, addinfo, other);
-					} else if (!hadSelection) {
-						// Don't stopImmediatePropagation — let iOS handle native text selection
+					} else {
+						event.stopImmediatePropagation();
 						hold = setTimeout(() => {
 							if (lastx ** 2 + lasty ** 2 > 10 ** 2) return;
-							// Check again: if iOS started text selection during the hold, don't override it
-							const currentSel = window.getSelection();
-							if (currentSel && currentSel.toString().length > 0) return;
+							// If iOS started text selection during the hold, don't show menu
+							const sel = window.getSelection();
+							if (sel && sel.toString().length > 0) return;
 							this.makemenu(event.touches[0].clientX, event.touches[0].clientY, addinfo, other);
 						}, 500);
 					}
 				},
-				{passive: true},
+				{passive: false},
 			);
 			let lastx = 0;
 			let lasty = 0;
@@ -406,7 +403,7 @@ class Contextmenu<x, y> {
 			obj.addEventListener("touchmove", (event) => {
 				lastx = event.touches[0].pageX - x;
 				lasty = event.touches[0].pageY - y;
-				// Don't trigger drag callbacks while user is selecting text
+				// Don't trigger drag while user is selecting text
 				const sel = window.getSelection();
 				if (sel && sel.toString().length > 0) return;
 				touchDrag(lastx, lasty);
