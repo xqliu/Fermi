@@ -1849,8 +1849,8 @@ span.instanceStatus {
 }
 .header {
 	flex: none;
-	height: 48px;
-	padding: 0 16px;
+	height: calc(48px + env(safe-area-inset-top, 0px));
+	padding: env(safe-area-inset-top, 0px) 16px 0;
 	background: var(--channels-header-bg);
 	border-bottom: 2px solid var(--shadow);
 	align-items: center;
