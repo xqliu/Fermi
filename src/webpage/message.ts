@@ -498,6 +498,9 @@ class Message extends SnowFlake {
 			undefined,
 			(x) => {
 				//console.log(x,y);
+				// Don't drag if user is selecting text
+				const sel = window.getSelection();
+				if (sel && sel.toString().length > 0) return;
 				if (!drag && x < 20) {
 					return;
 				}

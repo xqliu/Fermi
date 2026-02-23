@@ -406,6 +406,9 @@ class Contextmenu<x, y> {
 			obj.addEventListener("touchmove", (event) => {
 				lastx = event.touches[0].pageX - x;
 				lasty = event.touches[0].pageY - y;
+				// Don't trigger drag callbacks while user is selecting text
+				const sel = window.getSelection();
+				if (sel && sel.toString().length > 0) return;
 				touchDrag(lastx, lasty);
 			});
 		}
