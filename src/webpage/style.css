@@ -4260,6 +4260,9 @@ fieldset input[type="radio"] {
 	.channelnamediv {
 		background: var(--primary-bg);
 	}
+	#servers {
+		padding-top: calc(8px + env(safe-area-inset-top, 0px));
+	}
 	#maintoggleicon {
 		display: block;
 		padding: 12px;
