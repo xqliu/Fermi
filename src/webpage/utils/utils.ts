@@ -979,6 +979,10 @@ export class SW {
 	}
 	static async checkUpdates(): Promise<boolean> {
 		if (this.needsUpdate) return true;
+		// Also trigger browser's native SW update check (detects service.js changes)
+		if (this.registration) {
+			try { await this.registration.update(); } catch (e) { console.warn("[SW] registration.update() failed:", e); }
+		}
 		return new Promise((res) => {
 			this.captureEvent("updates", (update, remove) => {
 				remove();
