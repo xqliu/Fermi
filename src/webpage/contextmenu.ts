@@ -383,17 +383,22 @@ class Contextmenu<x, y> {
 				dy = 0;
 			}, {passive: true});
 			obj.addEventListener("touchmove", (event: TouchEvent) => {
+				// Skip drag if user is selecting text (iOS handles)
+				const sel = window.getSelection();
+				if (sel && sel.toString().length > 0) return;
 				dx = event.touches[0].pageX - startX;
 				dy = event.touches[0].pageY - startY;
 				touchDrag(dx, dy);
 			});
 			obj.addEventListener("touchend", (event: TouchEvent) => {
+				const sel = window.getSelection();
+				const hasSelection = sel && sel.toString().length > 0;
 				const touch = event.changedTouches[0];
 				const now = Date.now();
 				const ddx = touch.pageX - tapX;
 				const ddy = touch.pageY - tapY;
-				// Double-tap detection (< 350ms, < 20px apart)
-				if (now - lastTap < 350 && ddx * ddx + ddy * ddy < 20 * 20) {
+				// Double-tap detection (< 350ms, < 20px apart), skip if text selected
+				if (!hasSelection && now - lastTap < 350 && ddx * ddx + ddy * ddy < 20 * 20) {
 					event.preventDefault();
 					this.makemenu(touch.clientX, touch.clientY, addinfo, other);
 					lastTap = 0;
@@ -402,7 +407,7 @@ class Contextmenu<x, y> {
 					tapX = touch.pageX;
 					tapY = touch.pageY;
 				}
-				touchEnd(dx, dy);
+				if (!hasSelection) touchEnd(dx, dy);
 			});
 		}
 		return func;
