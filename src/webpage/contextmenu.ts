@@ -380,6 +380,9 @@ class Contextmenu<x, y> {
 			obj.addEventListener(
 				"touchstart",
 				(event: TouchEvent) => {
+					// If text is selected (e.g. after "Select Text"), don't interfere
+					const sel = window.getSelection();
+					if (sel && sel.toString().length > 0) return;
 					x = event.touches[0].pageX;
 					y = event.touches[0].pageY;
 					lastx = 0;
@@ -394,10 +397,14 @@ class Contextmenu<x, y> {
 				{passive: true},
 			);
 			obj.addEventListener("touchend", () => {
+				const sel = window.getSelection();
+				if (sel && sel.toString().length > 0) return;
 				if (hold) clearTimeout(hold);
 				if (!menuShown) touchEnd(lastx, lasty);
 			});
 			obj.addEventListener("touchmove", (event) => {
+				const sel = window.getSelection();
+				if (sel && sel.toString().length > 0) return;
 				lastx = event.touches[0].pageX - x;
 				lasty = event.touches[0].pageY - y;
 				if (lastx * lastx + lasty * lasty > 10 * 10 && hold) {
