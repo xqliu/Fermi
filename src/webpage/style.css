@@ -4256,6 +4256,8 @@ fieldset input[type="radio"] {
 	}
 	.channelnamediv {
 		padding: 0;
+		background: var(--primary-bg);
+		border-bottom: none;
 	}
 	#maintoggleicon {
 		display: block;
