@@ -397,6 +397,7 @@ class Localuser {
 	guildFolders: guildFolder[] = [];
 	unknownRead = new Map<string, readStateEntry>();
 	async gottenReady(ready: readyjson): Promise<void> {
+		this._resumedSuccessfully = false; // READY means full reconnect, not resume
 		await I18n.done;
 		this.errorBackoff = 0;
 		this.channelids.clear();
@@ -516,6 +517,7 @@ class Localuser {
 	resume_gateway_url?: string;
 	session_id?: string;
 	async initwebsocket(resume = false): Promise<void> {
+		this._resumedSuccessfully = false; // reset before each connection attempt
 		let returny: () => void;
 		if (!this.resume_gateway_url || !this.session_id) {
 			resume = false;
