@@ -112,8 +112,8 @@ async function checkCache() {
 			await putInCache("/getupdates", data); // must be awaited before reload
 			lastcache = text; // update in-memory so SW restart loop is avoided
 			await downloadAllFiles(); // files must be fully cached before closing
-			tryToClose();
 			checkedrecently = true;
+			// Notify clients BEFORE trying to close, so update icon appears
 			sendAll({
 				code: "updates",
 				updates: true,
