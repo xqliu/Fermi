@@ -103,6 +103,7 @@ class Localuser {
 	// Network resume listeners (visibilitychange / online / focus)
 	private _networkListenersActive = false;
 	private _reconnecting = false;
+	private _resumedSuccessfully = false;
 	private _onVisibilityChange = () => {
 		if (document.visibilityState === "visible") this._checkAndReconnect();
 	};
@@ -121,18 +122,21 @@ class Localuser {
 				this.reconnectCountdown = undefined;
 			}
 			this._reconnecting = true;
-			this.initwebsocket()
+			this.initwebsocket(true)
 				.then(async () => {
 					this.loaduser();
-					// Clear stale UI right before rebuilding
-					this.outoffocus();
-					try {
-						await this.init();
-					} catch (e) {
-						console.error("[_checkAndReconnect] init() failed:", e);
-					} finally {
-						(document.getElementById("reconnect-banner") as HTMLElement)?.classList.remove("visible");
+					if (this._resumedSuccessfully) {
+						this._resumedSuccessfully = false;
+					} else {
+						// Full READY received — rebuild UI
+						this.outoffocus();
+						try {
+							await this.init();
+						} catch (e) {
+							console.error("[_checkAndReconnect] init() failed:", e);
+						}
 					}
+					(document.getElementById("reconnect-banner") as HTMLElement)?.classList.remove("visible");
 				})
 				.catch(console.error)
 				.finally(() => { this._reconnecting = false; });
@@ -554,8 +558,6 @@ class Localuser {
 							},
 						}),
 					);
-					this.resume_gateway_url = undefined;
-					this.session_id = undefined;
 				} else {
 					ws.send(
 						JSON.stringify({
@@ -740,17 +742,21 @@ class Localuser {
 						this.reconnectTimeout = undefined;
 						if (this.swapped) return;
 						reconnectText.textContent = "正在重新连接...";
-						this.initwebsocket().then(async () => {
+						this.initwebsocket(true).then(async () => {
 							this.loaduser();
-							// Clear stale UI right before rebuilding (not at disconnect time)
-							this.outoffocus();
-							try {
-								await this.init();
-							} catch (e) {
-								console.error("[reconnect] init() failed:", e);
-							} finally {
-								reconnectBanner.classList.remove("visible");
+							if (this._resumedSuccessfully) {
+								this._resumedSuccessfully = false;
+								// RESUMED: server replays missed events, keep existing UI
+							} else {
+								// Full READY: must rebuild UI
+								this.outoffocus();
+								try {
+									await this.init();
+								} catch (e) {
+									console.error("[reconnect] init() failed:", e);
+								}
 							}
+							reconnectBanner.classList.remove("visible");
 							console.log("done reconnecting");
 						}).catch((e) => {
 							console.error("[reconnect] initwebsocket() failed:", e);
@@ -795,6 +801,8 @@ class Localuser {
 		if (getDeveloperSettings().gatewayLogging) console.debug(temp);
 		if (temp.s) this.lastSequence = temp.s;
 		if (temp.op === 9 && this.ws) {
+			this.resume_gateway_url = undefined;
+			this.session_id = undefined;
 			this.errorBackoff = 0;
 			this.ws.close(4041);
 		}
@@ -848,6 +856,9 @@ class Localuser {
 					message.deleteEvent();
 					break;
 				}
+				case "RESUMED":
+					this._resumedSuccessfully = true;
+					break;
 				case "READY":
 					await this.gottenReady(temp as readyjson);
 					break;
