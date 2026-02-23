@@ -4369,6 +4369,11 @@ fieldset input[type="radio"] {
 	}
 	.settingstitle {
 		font-size: 1.2rem;
+		padding-top: calc(8px + env(safe-area-inset-top, 0px));
+		min-height: calc(48px + env(safe-area-inset-top, 0px));
+	}
+	.exitsettings {
+		top: calc(11px + env(safe-area-inset-top, 0px));
 	}
 	.settingbuttons {
 		height: 100%;
