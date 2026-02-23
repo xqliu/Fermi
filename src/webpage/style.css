@@ -4896,13 +4896,15 @@ img.error::after {
 }
 .quick-bubble-label {
 	font-size: 9px;
-	color: #fff;
+	color: var(--primary-text);
 	text-align: center;
 	width: 48px;
 	overflow: hidden;
 	white-space: nowrap;
 	text-overflow: ellipsis;
-	text-shadow: 0 1px 3px rgba(0,0,0,0.8);
+	background: color-mix(in srgb, var(--primary-bg) 70%, transparent);
+	border-radius: 3px;
+	padding: 0 2px;
 	line-height: 1.2;
 }
 @keyframes bubble-in {
