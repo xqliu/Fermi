@@ -516,9 +516,10 @@ class Localuser {
 	swapped = false;
 	resume_gateway_url?: string;
 	session_id?: string;
-	async initwebsocket(resume = false): Promise<void> {
+	async initwebsocket(resume = false, managedReconnect = false): Promise<void> {
 		this._resumedSuccessfully = false; // reset before each connection attempt
 		let returny: () => void;
+		let rejecty: (reason?: unknown) => void;
 		if (!this.resume_gateway_url || !this.session_id) {
 			resume = false;
 		}
@@ -545,8 +546,9 @@ class Localuser {
 
 			arr = new Uint8Array();
 		}
-		const promise = new Promise<void>((res) => {
+		const promise = new Promise<void>((res, rej) => {
 			returny = res;
+			rejecty = rej;
 			ws.addEventListener("open", (_event) => {
 				console.log("WebSocket connected");
 				if (resume) {
@@ -657,6 +659,10 @@ class Localuser {
 		ws.addEventListener("close", async (event) => {
 			this.ws = undefined;
 			console.log("WebSocket closed with code " + event.code);
+			rejecty(new Error(`WebSocket closed: ${event.code}`));
+			// If this connection is managed by an external retry loop (banner reconnect),
+			// don't start our own reconnect — let the caller handle it.
+			if (managedReconnect) return;
 			if (
 				(event.code > 1000 && event.code < 1016 && this.errorBackoff === 0) ||
 				(wsCodesRetry.has(event.code) && this.errorBackoff === 0)
@@ -744,7 +750,22 @@ class Localuser {
 						this.reconnectTimeout = undefined;
 						if (this.swapped) return;
 						reconnectText.textContent = "正在重新连接...";
-						this.initwebsocket(true).then(async () => {
+						// Try resume first, fall back to identify if rejected
+						const tryConnect = async () => {
+							try {
+								await this.initwebsocket(true, true);
+							} catch {
+								// Resume rejected (4041/op:9) — retry with fresh identify
+								console.log("[reconnect] resume failed, retrying with identify...");
+								try {
+									await this.initwebsocket(false, true);
+								} catch (e2) {
+									console.error("[reconnect] identify also failed:", e2);
+									throw e2;
+								}
+							}
+						};
+						tryConnect().then(async () => {
 							this.loaduser();
 							if (this._resumedSuccessfully) {
 								this._resumedSuccessfully = false;
@@ -761,7 +782,7 @@ class Localuser {
 							reconnectBanner.classList.remove("visible");
 							console.log("done reconnecting");
 						}).catch((e) => {
-							console.error("[reconnect] initwebsocket() failed:", e);
+							console.error("[reconnect] reconnect failed:", e);
 							reconnectBanner.classList.remove("visible");
 						});
 					},
