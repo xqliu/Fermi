@@ -124,6 +124,8 @@ class Localuser {
 			this.initwebsocket()
 				.then(async () => {
 					this.loaduser();
+					// Clear stale UI right before rebuilding
+					this.outoffocus();
 					try {
 						await this.init();
 					} catch (e) {
@@ -661,10 +663,6 @@ class Localuser {
 				});
 				return;
 			}
-			this.unload();
-			this.fetchingmembers.clear();
-			this.noncemap.clear();
-			this.noncebuild.clear();
 			const loaddesc = document.getElementById("load-desc") as HTMLElement;
 			const reconnectBanner = document.getElementById("reconnect-banner") as HTMLElement;
 			const reconnectText = document.getElementById("reconnect-text") as HTMLElement;
@@ -673,7 +671,10 @@ class Localuser {
 				wsCodesRetry.has(event.code) ||
 				event.code == 4041
 			) {
-				// Reconnectable: show banner, keep chat UI visible
+				// Reconnectable: keep UI visible while reconnecting, only clear WS state
+				this.fetchingmembers.clear();
+				this.noncemap.clear();
+				this.noncebuild.clear();
 				// Clear any pending reconnect from a previous disconnect
 				if (this.reconnectTimeout) clearTimeout(this.reconnectTimeout);
 				if (this.reconnectCountdown) clearInterval(this.reconnectCountdown);
@@ -741,6 +742,8 @@ class Localuser {
 						reconnectText.textContent = "正在重新连接...";
 						this.initwebsocket().then(async () => {
 							this.loaduser();
+							// Clear stale UI right before rebuilding (not at disconnect time)
+							this.outoffocus();
 							try {
 								await this.init();
 							} catch (e) {
@@ -757,7 +760,11 @@ class Localuser {
 					delayMs,
 				);
 			} else {
-				// Unrecoverable: show full-screen loading with error
+				// Unrecoverable: clear UI state and show full-screen loading with error
+				this.unload();
+				this.fetchingmembers.clear();
+				this.noncemap.clear();
+				this.noncebuild.clear();
 				(document.getElementById("loading") as HTMLElement).classList.remove("doneloading");
 				(document.getElementById("loading") as HTMLElement).classList.add("loading");
 				loaddesc.textContent = I18n.unableToConnect();
