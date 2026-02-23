@@ -177,6 +177,38 @@ class Message extends SnowFlake {
 			},
 		);
 		Message.contextmenu.addButton(
+			() => "Select Text",
+			function (this: Message) {
+				if (!this.div) return;
+				const commentRow = this.div.querySelector(".commentrow");
+				if (!commentRow) return;
+				// Temporarily enable text selection on this message
+				(commentRow as HTMLElement).style.userSelect = "text";
+				(commentRow as HTMLElement).style.webkitUserSelect = "text";
+				// Select all text in the message
+				const range = document.createRange();
+				range.selectNodeContents(commentRow);
+				const sel = window.getSelection();
+				if (sel) {
+					sel.removeAllRanges();
+					sel.addRange(range);
+				}
+				// Re-disable after user copies (on next touch outside)
+				const cleanup = () => {
+					(commentRow as HTMLElement).style.userSelect = "";
+					(commentRow as HTMLElement).style.webkitUserSelect = "";
+					document.removeEventListener("touchstart", cleanup);
+				};
+				// Delay cleanup listener so it doesn't fire immediately
+				setTimeout(() => document.addEventListener("touchstart", cleanup, {once: true}), 300);
+			},
+			{
+				icon: {
+					css: "svg-copy",
+				},
+			},
+		);
+		Message.contextmenu.addButton(
 			() => I18n.copyLink(),
 			function (this: Message) {
 				navigator.clipboard.writeText(
