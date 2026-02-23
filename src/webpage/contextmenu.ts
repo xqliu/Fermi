@@ -367,43 +367,33 @@ class Contextmenu<x, y> {
 		}
 		//NOTE not sure if this code is correct, seems fine at least for now
 		if (mobile) {
-			let hold: NodeJS.Timeout | undefined;
-			let x!: number;
-			let y!: number;
-			obj.addEventListener(
-				"touchstart",
-				(event: TouchEvent) => {
-					x = event.touches[0].pageX;
-					y = event.touches[0].pageY;
-					if (event.touches.length > 1) {
-						event.preventDefault();
-						event.stopImmediatePropagation();
-						this.makemenu(event.touches[0].clientX, event.touches[0].clientY, addinfo, other);
-					} else {
-						event.stopImmediatePropagation();
-						hold = setTimeout(() => {
-							if (lastx ** 2 + lasty ** 2 > 10 ** 2) return;
-							// If iOS started text selection during the hold, don't show menu
-							const sel = window.getSelection();
-							if (sel && sel.toString().length > 0) return;
-							this.makemenu(event.touches[0].clientX, event.touches[0].clientY, addinfo, other);
-						}, 800);
-					}
-				},
-				{passive: false},
-			);
+			// Use native contextmenu event on mobile — iOS handles long-press
+			// timing and text selection priority correctly, no need to race timers
+			obj.addEventListener("contextmenu", (event: MouseEvent) => {
+				const sel = window.getSelection();
+				if (sel && sel.toString().length > 0) return; // text selected, let iOS handle
+				event.preventDefault();
+				this.makemenu(event.clientX, event.clientY, addinfo, other);
+			});
+			// Swipe-to-reply drag handling
+			let x = 0;
+			let y = 0;
 			let lastx = 0;
 			let lasty = 0;
+			obj.addEventListener("touchstart", (event: TouchEvent) => {
+				x = event.touches[0].pageX;
+				y = event.touches[0].pageY;
+				lastx = 0;
+				lasty = 0;
+			}, {passive: true});
 			obj.addEventListener("touchend", () => {
-				if (hold) {
-					clearTimeout(hold);
-				}
+				const sel = window.getSelection();
+				if (sel && sel.toString().length > 0) return;
 				touchEnd(lastx, lasty);
 			});
 			obj.addEventListener("touchmove", (event) => {
 				lastx = event.touches[0].pageX - x;
 				lasty = event.touches[0].pageY - y;
-				// Don't trigger drag while user is selecting text
 				const sel = window.getSelection();
 				if (sel && sel.toString().length > 0) return;
 				touchDrag(lastx, lasty);
