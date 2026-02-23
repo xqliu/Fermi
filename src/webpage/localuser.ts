@@ -57,6 +57,26 @@ interface CustomHTMLDivElement extends HTMLDivElement {
 }
 
 MarkDown.emoji = Emoji;
+
+// Rate-limited reload: max 3 reloads per 60s, then stop and show error
+function safeReload() {
+	const key = "fermi_reload_times";
+	const now = Date.now();
+	const times: number[] = JSON.parse(sessionStorage.getItem(key) || "[]")
+		.filter((t: number) => now - t < 60000);
+	if (times.length >= 3) {
+		console.error("[safeReload] too many reloads, stopping");
+		const loaddesc = document.getElementById("load-desc");
+		if (loaddesc) loaddesc.textContent = "连接失败，请稍后手动刷新";
+		const loading = document.getElementById("loading");
+		if (loading) { loading.classList.remove("doneloading"); loading.classList.add("loading"); }
+		return;
+	}
+	times.push(now);
+	sessionStorage.setItem(key, JSON.stringify(times));
+	window.location.reload();
+}
+
 class Localuser {
 	badges = new Map<
 		string,
@@ -140,7 +160,7 @@ class Localuser {
 				})
 				.catch((e) => {
 					console.error("[_checkAndReconnect] failed, reloading", e);
-					window.location.reload();
+					safeReload();
 				})
 				.finally(() => { this._reconnecting = false; });
 		}
@@ -685,7 +705,7 @@ class Localuser {
 				}).catch((e) => {
 					console.warn("[ws] fast resume failed, reloading", e);
 					// Fast resume failed — simplest recovery is reload
-					window.location.reload();
+					safeReload();
 				});
 				return;
 			}
@@ -802,7 +822,7 @@ class Localuser {
 							reconnectText.textContent = "连接失败，5秒后刷新...";
 							await new Promise((r) => setTimeout(r, 5000));
 							if (this.swapped) return;
-							window.location.reload();
+							safeReload();
 						});
 					},
 					delayMs,
@@ -814,7 +834,7 @@ class Localuser {
 				(document.getElementById("loading") as HTMLElement).classList.remove("doneloading");
 				(document.getElementById("loading") as HTMLElement).classList.add("loading");
 				setTimeout(() => {
-					window.location.reload();
+					safeReload();
 				}, 5000);
 			}
 		});

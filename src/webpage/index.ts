@@ -107,13 +107,20 @@ if (window.location.pathname.startsWith("/channels")) {
 			}
 			thisUser.subscribePush().catch((e: any) => console.warn("[push] subscribe failed:", e));
 		};
+		let retryCount = 0;
 		const connectWithRetry = async () => {
 			try {
 				await thisUser.initwebsocket();
+				retryCount = 0;
 				await finishLoading();
 			} catch (e) {
-				console.warn("[init] WS failed, retrying in 3s...", e);
-				loaddesc.textContent = "连接失败，正在重试...";
+				retryCount++;
+				if (retryCount > 10) {
+					loaddesc.textContent = "无法连接服务器，请稍后手动刷新";
+					return;
+				}
+				console.warn(`[init] WS failed (attempt ${retryCount}), retrying in 3s...`, e);
+				loaddesc.textContent = `连接失败，正在重试... (${retryCount}/10)`;
 				await new Promise((r) => setTimeout(r, 3000));
 				await connectWithRetry();
 			}
