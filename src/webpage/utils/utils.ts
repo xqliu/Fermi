@@ -889,7 +889,7 @@ export class SW {
 		this.postMessage({code: "isDev", dev: getDeveloperSettings().cacheSourceMaps});
 		this.captureEvent("updates", (update, stop) => {
 			this.needsUpdate ||= update.updates;
-			if (update) {
+			if (update.updates) {
 				stop();
 				const updateIcon = document.getElementById("updateIcon");
 				if (updateIcon) {
@@ -981,7 +981,7 @@ export class SW {
 		if (this.needsUpdate) return true;
 		return new Promise((res) => {
 			this.captureEvent("updates", (update, remove) => {
-				remove;
+				remove();
 				res(update.updates);
 			});
 			this.postMessage({code: "CheckUpdate"});
