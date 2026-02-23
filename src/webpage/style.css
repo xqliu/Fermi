@@ -4231,10 +4231,9 @@ fieldset input[type="radio"] {
 
 @media screen and (max-width: 600px) {
 	.searching {
-		position: absolute;
-		width: 100%;
-		background: var(--primary-bg);
-		z-index: 1;
+		position: relative;
+		flex: 1 1 auto;
+		min-width: 0;
 		#searchBox {
 			width: 100%;
 			padding: 7px 10px 13px 10px;
