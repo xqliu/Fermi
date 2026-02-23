@@ -109,7 +109,8 @@ class Localuser {
 	private _onNetworkResume = () => this._checkAndReconnect();
 	private _checkAndReconnect() {
 		if (this._reconnecting) return;
-		if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
+		// Only reconnect if WS is CLOSED or CLOSING — not if it's still CONNECTING
+		if (!this.ws || this.ws.readyState === WebSocket.CLOSED || this.ws.readyState === WebSocket.CLOSING) {
 			this._reconnecting = true;
 			this.initwebsocket()
 				.then(() => this.loaduser())
