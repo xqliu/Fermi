@@ -387,7 +387,7 @@ class Contextmenu<x, y> {
 							const sel = window.getSelection();
 							if (sel && sel.toString().length > 0) return;
 							this.makemenu(event.touches[0].clientX, event.touches[0].clientY, addinfo, other);
-						}, 500);
+						}, 800);
 					}
 				},
 				{passive: false},
