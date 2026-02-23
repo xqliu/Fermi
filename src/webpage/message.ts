@@ -195,14 +195,23 @@ class Message extends SnowFlake {
 					sel.removeAllRanges();
 					sel.addRange(range);
 				}
-				// Cleanup when selection is lost (check periodically)
+				// Cleanup when selection is lost
+				// Use a grace period: selection can briefly become empty when
+				// the user taps to adjust handles on iOS, so don't clean up
+				// until it's been empty for 2 consecutive checks (~1s).
+				let emptyCount = 0;
 				const checkSelection = setInterval(() => {
 					const s = window.getSelection();
 					if (!s || s.toString().length === 0) {
-						clearInterval(checkSelection);
-						(window as any).__fermiTextSelect = false;
-						(commentRow as HTMLElement).style.userSelect = "";
-						(commentRow as HTMLElement).style.webkitUserSelect = "";
+						emptyCount++;
+						if (emptyCount >= 2) {
+							clearInterval(checkSelection);
+							(window as any).__fermiTextSelect = false;
+							(commentRow as HTMLElement).style.userSelect = "";
+							(commentRow as HTMLElement).style.webkitUserSelect = "";
+						}
+					} else {
+						emptyCount = 0;
 					}
 				}, 500);
 			},
