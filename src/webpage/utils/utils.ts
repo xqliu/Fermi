@@ -990,9 +990,8 @@ export class SW {
 	static async checkUpdates(): Promise<boolean> {
 		if (this.needsUpdate) return true;
 		try {
-			// Fetch current version directly from server
-			// Add cache-bust param to bypass SW fetch interception
-			const resp = await fetch("/getupdates?_t=" + Date.now(), { cache: "no-store" });
+			// Fetch current version directly from server (SW won't intercept /getupdates)
+			const resp = await fetch("/getupdates", { cache: "no-store" });
 			if (!resp.ok) return false;
 			const serverVersion = (await resp.text()).trim();
 			const cachedVersion = localStorage.getItem("fermi_version") || "";

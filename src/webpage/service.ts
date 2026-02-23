@@ -262,7 +262,8 @@ self.addEventListener("fetch", async (e) => {
 	if (req.method === "POST") {
 		return;
 	}
-	if (new URL(req.url).pathname.startsWith("/api/")) {
+	const pathname = new URL(req.url).pathname;
+	if (pathname.startsWith("/api/") || pathname === "/getupdates") {
 		return;
 	}
 	try {
