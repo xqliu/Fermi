@@ -4867,7 +4867,7 @@ img.error::after {
 
 /* ── Quick-switch bubbles ───────────────────────────────────── */
 #quick-bubbles {
-	display: none;
+	display: flex;
 	position: fixed;
 	right: 8px;
 	bottom: calc(72px + env(safe-area-inset-bottom, 0px));
@@ -4875,11 +4875,6 @@ img.error::after {
 	gap: 6px;
 	z-index: 500;
 	pointer-events: none;
-}
-@media screen and (max-width: 600px) {
-	#quick-bubbles {
-		display: flex;
-	}
 }
 .quick-bubble {
 	width: 48px;
