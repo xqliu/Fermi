@@ -186,15 +186,24 @@ class Localuser {
 		sessionStorage.setItem("currentuser", specialUser.uid);
 		localStorage.setItem("userinfos", JSON.stringify(Localuser.users));
 
-		thisUser.initwebsocket().then(async () => {
-			const loaddesc = document.getElementById("load-desc") as HTMLElement;
-			thisUser.loaduser();
-			await thisUser.init();
-			loading.classList.add("doneloading");
-			loaddesc.textContent = I18n.loaded();
-			loading.classList.remove("loading");
-			console.log("done loading");
-		});
+		const connectWithRetry = async (): Promise<void> => {
+			try {
+				await thisUser.initwebsocket();
+				thisUser.loaduser();
+				await thisUser.init();
+				loading.classList.add("doneloading");
+				loading.classList.remove("loading");
+				const loaddesc = document.getElementById("load-desc") as HTMLElement;
+				loaddesc.textContent = I18n.loaded();
+			} catch (e) {
+				console.warn("[accountSwitch] WS failed, retrying in 3s...", e);
+				const loaddesc = document.getElementById("load-desc") as HTMLElement;
+				loaddesc.textContent = "连接失败，正在重试...";
+				await new Promise((r) => setTimeout(r, 3000));
+				await connectWithRetry();
+			}
+		};
+		connectWithRetry();
 
 		onswap?.(thisUser);
 	}
@@ -670,6 +679,9 @@ class Localuser {
 				this.errorBackoff++;
 				this.initwebsocket(true).then(() => {
 					this.loaduser();
+				}).catch((e) => {
+					console.warn("[ws] fast resume failed, falling through to banner reconnect", e);
+					// Don't return — let it fall through to the banner reconnect logic below
 				});
 				return;
 			}
@@ -781,22 +793,36 @@ class Localuser {
 							}
 							reconnectBanner.classList.remove("visible");
 							console.log("done reconnecting");
-						}).catch((e) => {
-							console.error("[reconnect] reconnect failed:", e);
-							reconnectBanner.classList.remove("visible");
+						}).catch(async (e) => {
+							console.error("[reconnect] reconnect failed, retrying in 5s...", e);
+							reconnectText.textContent = "连接失败，5秒后重试...";
+							this.errorBackoff++;
+							await new Promise((r) => setTimeout(r, 5000));
+							if (this.swapped) return;
+							reconnectText.textContent = "正在重新连接...";
+							try {
+								await this.initwebsocket(false, true);
+								this.loaduser();
+								this.outoffocus();
+								await this.init();
+								reconnectBanner.classList.remove("visible");
+							} catch (e2) {
+								console.error("[reconnect] retry also failed:", e2);
+								reconnectBanner.classList.remove("visible");
+							}
 						});
 					},
 					delayMs,
 				);
 			} else {
-				// Unrecoverable: clear UI state and show full-screen loading with error
-				this.unload();
-				this.fetchingmembers.clear();
-				this.noncemap.clear();
-				this.noncebuild.clear();
+				// Unrecoverable code — but still auto-reload after 5s so user doesn't get stuck
+				console.error("[ws] unrecoverable close code:", event.code);
+				loaddesc.textContent = `连接断开 (${event.code})，5秒后刷新...`;
 				(document.getElementById("loading") as HTMLElement).classList.remove("doneloading");
 				(document.getElementById("loading") as HTMLElement).classList.add("loading");
-				loaddesc.textContent = I18n.unableToConnect();
+				setTimeout(() => {
+					window.location.reload();
+				}, 5000);
 			}
 		});
 		console.log("here?");
