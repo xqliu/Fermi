@@ -138,7 +138,10 @@ class Localuser {
 					}
 					(document.getElementById("reconnect-banner") as HTMLElement)?.classList.remove("visible");
 				})
-				.catch(console.error)
+				.catch((e) => {
+					console.error("[_checkAndReconnect] failed, reloading", e);
+					window.location.reload();
+				})
 				.finally(() => { this._reconnecting = false; });
 		}
 	}
@@ -680,8 +683,9 @@ class Localuser {
 				this.initwebsocket(true).then(() => {
 					this.loaduser();
 				}).catch((e) => {
-					console.warn("[ws] fast resume failed, falling through to banner reconnect", e);
-					// Don't return — let it fall through to the banner reconnect logic below
+					console.warn("[ws] fast resume failed, reloading", e);
+					// Fast resume failed — simplest recovery is reload
+					window.location.reload();
 				});
 				return;
 			}
@@ -794,22 +798,11 @@ class Localuser {
 							reconnectBanner.classList.remove("visible");
 							console.log("done reconnecting");
 						}).catch(async (e) => {
-							console.error("[reconnect] reconnect failed, retrying in 5s...", e);
-							reconnectText.textContent = "连接失败，5秒后重试...";
-							this.errorBackoff++;
+							console.error("[reconnect] failed, reloading in 5s...", e);
+							reconnectText.textContent = "连接失败，5秒后刷新...";
 							await new Promise((r) => setTimeout(r, 5000));
 							if (this.swapped) return;
-							reconnectText.textContent = "正在重新连接...";
-							try {
-								await this.initwebsocket(false, true);
-								this.loaduser();
-								this.outoffocus();
-								await this.init();
-								reconnectBanner.classList.remove("visible");
-							} catch (e2) {
-								console.error("[reconnect] retry also failed:", e2);
-								reconnectBanner.classList.remove("visible");
-							}
+							window.location.reload();
 						});
 					},
 					delayMs,
@@ -1205,11 +1198,15 @@ class Localuser {
 		} else if (temp.op === 10) {
 			if (!this.ws) return;
 			console.log("heartbeat down");
+			// Clear any old heartbeat timer from previous connection
+			if (this.heartbeatTimer) clearTimeout(this.heartbeatTimer);
 			this.heartbeat_interval = temp.d.heartbeat_interval;
 			this.ws.send(JSON.stringify({op: 1, d: this.lastSequence}));
 		} else if (temp.op === 11) {
-			setTimeout((_: any) => {
-				if (!this.ws) return;
+			if (this.heartbeatTimer) clearTimeout(this.heartbeatTimer);
+			const currentWs = this.ws; // capture ref to detect stale timer
+			this.heartbeatTimer = setTimeout(() => {
+				if (this.ws !== currentWs || !this.ws) return;
 				if (this.connectionSucceed === 0) this.connectionSucceed = Date.now();
 				this.ws.send(JSON.stringify({op: 1, d: this.lastSequence}));
 			}, this.heartbeat_interval);
@@ -1352,6 +1349,7 @@ class Localuser {
 	}
 
 	heartbeat_interval: number = 0;
+	private heartbeatTimer: ReturnType<typeof setTimeout> | undefined;
 	updateChannel(json: channeljson): void {
 		const guild = this.guildids.get(json.guild_id || "@me");
 		if (guild) {
