@@ -19,7 +19,7 @@ async function downloadAllFiles() {
 						return;
 					}
 					const res = await fetch(lpath, { cache: "no-store" });
-					putInCache(new URL(lpath, self.location.origin), res);
+					await putInCache(new URL(lpath, self.location.origin), res);
 				} else {
 					await cachePath(path + "/" + name, thing);
 				}
@@ -29,7 +29,7 @@ async function downloadAllFiles() {
 
 	const json = await getAllFiles();
 
-	cachePath("", json);
+	await cachePath("", json);
 }
 async function getFromCache(request: URL) {
 	request = new URL(request, self.location.href);
@@ -98,8 +98,9 @@ async function checkCache() {
 		console.log(text, lastcache);
 		if (lastcache !== text) {
 			await deleteoldcache();
-			putInCache("/getupdates", data);
-			await downloadAllFiles();
+			await putInCache("/getupdates", data); // must be awaited before reload
+			lastcache = text; // update in-memory so SW restart loop is avoided
+			await downloadAllFiles(); // files must be fully cached before closing
 			tryToClose();
 			checkedrecently = true;
 			sendAll({
