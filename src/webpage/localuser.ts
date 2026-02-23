@@ -593,7 +593,7 @@ class Localuser {
 							build = "";
 							await this.handleEvent(temp);
 
-							if (temp.op === 0 && temp.t === "READY") {
+							if (temp.op === 0 && (temp.t === "READY" || temp.t === "RESUMED")) {
 								console.log("in here?");
 								returny();
 							}
@@ -639,7 +639,7 @@ class Localuser {
 					}
 
 					await this.handleEvent(temp as readyjson);
-					if (temp.op === 0 && temp.t === "READY") {
+					if (temp.op === 0 && (temp.t === "READY" || temp.t === "RESUMED")) {
 						returny();
 					}
 				} catch (e) {
