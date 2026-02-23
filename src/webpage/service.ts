@@ -61,8 +61,14 @@ async function putInCache(request: URL | string, response: Response) {
 }
 
 let lastcache: string;
-self.addEventListener("activate", async () => {
-	console.log("Service Worker activated");
+self.addEventListener("install", () => {
+	console.log("[SW] Installing, skip waiting");
+	(self as any).skipWaiting();
+});
+
+self.addEventListener("activate", async (event: any) => {
+	console.log("[SW] Activated, claiming clients");
+	event.waitUntil((self as any).clients.claim());
 	checkCache();
 });
 async function tryToClose() {
