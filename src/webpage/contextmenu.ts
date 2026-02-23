@@ -367,36 +367,42 @@ class Contextmenu<x, y> {
 		}
 		//NOTE not sure if this code is correct, seems fine at least for now
 		if (mobile) {
-			// Use native contextmenu event on mobile — iOS handles long-press
-			// timing and text selection priority correctly, no need to race timers
-			obj.addEventListener("contextmenu", (event: MouseEvent) => {
-				const sel = window.getSelection();
-				if (sel && sel.toString().length > 0) return; // text selected, let iOS handle
-				event.preventDefault();
-				this.makemenu(event.clientX, event.clientY, addinfo, other);
-			});
-			// Swipe-to-reply drag handling
-			let x = 0;
-			let y = 0;
-			let lastx = 0;
-			let lasty = 0;
+			// Mobile: single tap for context menu, long press = iOS text selection
+			let startX = 0;
+			let startY = 0;
+			let startTime = 0;
+			let moved = false;
 			obj.addEventListener("touchstart", (event: TouchEvent) => {
-				x = event.touches[0].pageX;
-				y = event.touches[0].pageY;
-				lastx = 0;
-				lasty = 0;
+				startX = event.touches[0].pageX;
+				startY = event.touches[0].pageY;
+				startTime = Date.now();
+				moved = false;
 			}, {passive: true});
-			obj.addEventListener("touchend", () => {
-				const sel = window.getSelection();
-				if (sel && sel.toString().length > 0) return;
-				touchEnd(lastx, lasty);
-			});
 			obj.addEventListener("touchmove", (event) => {
-				lastx = event.touches[0].pageX - x;
-				lasty = event.touches[0].pageY - y;
+				const dx = event.touches[0].pageX - startX;
+				const dy = event.touches[0].pageY - startY;
+				if (dx * dx + dy * dy > 10 * 10) moved = true;
+				// Swipe drag handling (skip if text selected)
 				const sel = window.getSelection();
 				if (sel && sel.toString().length > 0) return;
-				touchDrag(lastx, lasty);
+				touchDrag(dx, dy);
+			});
+			obj.addEventListener("touchend", (event: TouchEvent) => {
+				const dx = (event.changedTouches[0]?.pageX ?? startX) - startX;
+				const dy = (event.changedTouches[0]?.pageY ?? startY) - startY;
+				// Swipe end handling (skip if text selected)
+				const sel = window.getSelection();
+				if (sel && sel.toString().length > 0) return;
+				touchEnd(dx, dy);
+				// Single tap: short press + no movement = show context menu
+				const elapsed = Date.now() - startTime;
+				if (!moved && elapsed < 300) {
+					this.makemenu(
+						event.changedTouches[0]?.clientX ?? startX,
+						event.changedTouches[0]?.clientY ?? startY,
+						addinfo, other,
+					);
+				}
 			});
 		}
 		return func;
