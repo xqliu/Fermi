@@ -94,11 +94,9 @@ if (window.location.pathname.startsWith("/channels")) {
 		}
 
 		regSwap(thisUser);
-		thisUser.initwebsocket().then(async () => {
+		const finishLoading = async () => {
 			thisUser.loaduser();
-			console.warn("huh");
 			await thisUser.init();
-			console.warn("huh2");
 			const loading = document.getElementById("loading") as HTMLDivElement;
 			loading.classList.add("doneloading");
 			loading.classList.remove("loading");
@@ -107,9 +105,20 @@ if (window.location.pathname.startsWith("/channels")) {
 			if (templateID) {
 				thisUser.passTemplateID(templateID);
 			}
-			// Subscribe to push notifications (non-blocking)
 			thisUser.subscribePush().catch((e: any) => console.warn("[push] subscribe failed:", e));
-		});
+		};
+		const connectWithRetry = async () => {
+			try {
+				await thisUser.initwebsocket();
+				await finishLoading();
+			} catch (e) {
+				console.warn("[init] WS failed, retrying in 3s...", e);
+				loaddesc.textContent = "连接失败，正在重试...";
+				await new Promise((r) => setTimeout(r, 3000));
+				await connectWithRetry();
+			}
+		};
+		connectWithRetry();
 	} catch (e) {
 		console.error(e);
 		loaddesc.textContent = I18n.accountNotStart();
