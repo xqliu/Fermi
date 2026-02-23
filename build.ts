@@ -223,6 +223,9 @@ async function build() {
 	// Inject build version into service.js so the browser detects SW changes
 	const swPath = path.join(__dirname, "dist", "webpage", "service.js");
 	const swContent = await fs.readFile(swPath, "utf-8");
+	if (!swContent.includes("__BUILD_VERSION__")) {
+		throw new Error("FATAL: service.js missing __BUILD_VERSION__ placeholder — SW updates will break!");
+	}
 	await fs.writeFile(swPath, swContent.replace("__BUILD_VERSION__", revision));
 	console.log("Injected build version into service.js:", revision.slice(0, 8));
 
