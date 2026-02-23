@@ -1,5 +1,10 @@
 import {messageFrom, messageTo} from "./utils/serviceType";
 
+// __BUILD_VERSION__ is replaced at build time with the git commit hash.
+// This ensures the browser detects service.js has changed and installs the new SW.
+const BUILD_VERSION = "__BUILD_VERSION__";
+console.log("[SW] version:", BUILD_VERSION);
+
 async function deleteoldcache() {
 	await caches.delete("cache");
 }

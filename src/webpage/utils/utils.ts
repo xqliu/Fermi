@@ -996,6 +996,7 @@ export class SW {
 			navigator.serviceWorker
 				.register("/service.js", {
 					scope: "/",
+					updateViaCache: "none",
 				})
 				.then((registration) => {
 					let serviceWorker: ServiceWorker | undefined;

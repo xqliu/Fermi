@@ -220,6 +220,12 @@ async function build() {
 	await fs.writeFile(path.join(__dirname, "dist", "webpage", "getupdates"), revision);
 	console.timeEnd("Writing version");
 
+	// Inject build version into service.js so the browser detects SW changes
+	const swPath = path.join(__dirname, "dist", "webpage", "service.js");
+	const swContent = await fs.readFile(swPath, "utf-8");
+	await fs.writeFile(swPath, swContent.replace("__BUILD_VERSION__", revision));
+	console.log("Injected build version into service.js:", revision.slice(0, 8));
+
 	console.time("Building Service File");
 	const dir = await crawlDir(path.join(__dirname, "dist", "webpage"));
 	dir["files.json"] = "files.json";
