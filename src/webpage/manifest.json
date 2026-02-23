@@ -16,9 +16,9 @@
 	"start_url": "/app",
 	"display": "standalone",
 	"scope": "/",
-	"theme_color": "#303339",
+	"theme_color": "#05050a",
 	"categories": ["social"],
 	"description": "Lucky 5L 专属聊天服务",
-	"background_color": "#16191b",
+	"background_color": "#05050a",
 	"offline_enabled": true
 }
