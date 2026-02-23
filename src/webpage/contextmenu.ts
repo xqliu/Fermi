@@ -368,16 +368,32 @@ class Contextmenu<x, y> {
 		//NOTE not sure if this code is correct, seems fine at least for now
 		if (mobile) {
 			// Mobile: double-tap = context menu, long-press = iOS native text selection
+			// Touch drag/end still forwarded for swipe gestures (e.g. swipe to sidebar)
 			let lastTap = 0;
 			let tapX = 0;
 			let tapY = 0;
+			let startX = 0;
+			let startY = 0;
+			let dx = 0;
+			let dy = 0;
+			obj.addEventListener("touchstart", (event: TouchEvent) => {
+				startX = event.touches[0].pageX;
+				startY = event.touches[0].pageY;
+				dx = 0;
+				dy = 0;
+			}, {passive: true});
+			obj.addEventListener("touchmove", (event: TouchEvent) => {
+				dx = event.touches[0].pageX - startX;
+				dy = event.touches[0].pageY - startY;
+				touchDrag(dx, dy);
+			});
 			obj.addEventListener("touchend", (event: TouchEvent) => {
 				const touch = event.changedTouches[0];
 				const now = Date.now();
-				const dx = touch.pageX - tapX;
-				const dy = touch.pageY - tapY;
-				if (now - lastTap < 350 && dx * dx + dy * dy < 20 * 20) {
-					// Double tap — show context menu
+				const ddx = touch.pageX - tapX;
+				const ddy = touch.pageY - tapY;
+				// Double-tap detection (< 350ms, < 20px apart)
+				if (now - lastTap < 350 && ddx * ddx + ddy * ddy < 20 * 20) {
 					event.preventDefault();
 					this.makemenu(touch.clientX, touch.clientY, addinfo, other);
 					lastTap = 0;
@@ -386,6 +402,7 @@ class Contextmenu<x, y> {
 					tapX = touch.pageX;
 					tapY = touch.pageY;
 				}
+				touchEnd(dx, dy);
 			});
 		}
 		return func;
