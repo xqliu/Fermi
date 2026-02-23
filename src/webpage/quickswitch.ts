@@ -89,7 +89,6 @@ export class QuickSwitcher {
 
 	private render(): void {
 		if (!this.container) return;
-		this.container.innerHTML = "";
 
 		const currentId = this.localuser.channelfocus?.id;
 		const seen = new Set<string>();
@@ -108,17 +107,58 @@ export class QuickSwitcher {
 		candidates.sort((a, b) => {
 			const pa = a.mentions > 0 ? 2 : a.hasunreads ? 1 : 0;
 			const pb = b.mentions > 0 ? 2 : b.hasunreads ? 1 : 0;
-			return pb - pa; // higher priority first
+			return pb - pa;
 		});
 
-		for (const channel of candidates.slice(0, MAX_BUBBLES)) {
-			this.container.appendChild(this.makeBubble(channel));
+		const wanted = candidates.slice(0, MAX_BUBBLES);
+		const wantedIds = new Set(wanted.map(c => c.id));
+
+		// Remove bubbles no longer needed
+		for (const el of Array.from(this.container.children)) {
+			const id = (el as HTMLElement).dataset.channelId;
+			if (!id || !wantedIds.has(id)) el.remove();
+		}
+
+		// Update badges on existing + add new bubbles in correct order
+		wanted.forEach((channel, i) => {
+			const existing = this.container!.querySelector(`[data-channel-id="${channel.id}"]`) as HTMLElement | null;
+			if (existing) {
+				// Update badge only, no animation
+				this._updateBadge(existing, channel);
+				// Reorder if needed
+				if (this.container!.children[i] !== existing) {
+					this.container!.insertBefore(existing, this.container!.children[i] ?? null);
+				}
+			} else {
+				// New bubble — insert with animation
+				const el = this.makeBubble(channel);
+				this.container!.insertBefore(el, this.container!.children[i] ?? null);
+			}
+		});
+	}
+
+	private _updateBadge(bubble: HTMLElement, channel: Channel): void {
+		const wrap = bubble.querySelector(".quick-bubble-icon-wrap") as HTMLElement;
+		if (!wrap) return;
+		// Remove existing badge
+		wrap.querySelector(".bubble-badge")?.remove();
+		// Re-add if needed
+		if (channel.mentions > 0) {
+			const badge = document.createElement("div");
+			badge.classList.add("bubble-badge");
+			badge.textContent = channel.mentions > 9 ? "9+" : String(channel.mentions);
+			wrap.appendChild(badge);
+		} else if (channel.hasunreads) {
+			const dot = document.createElement("div");
+			dot.classList.add("bubble-badge", "bubble-badge-dot");
+			wrap.appendChild(dot);
 		}
 	}
 
 	private makeBubble(channel: Channel): HTMLElement {
 		const div = document.createElement("div");
 		div.classList.add("quick-bubble");
+		div.dataset.channelId = channel.id;
 		div.title = channel.name;
 
 		// Icon wrapper (for badge positioning)
