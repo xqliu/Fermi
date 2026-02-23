@@ -375,21 +375,25 @@ class Contextmenu<x, y> {
 				(event: TouchEvent) => {
 					x = event.touches[0].pageX;
 					y = event.touches[0].pageY;
+					// Clear any existing text selection so we start clean
+					const sel = window.getSelection();
+					const hadSelection = sel && sel.toString().length > 0;
 					if (event.touches.length > 1) {
 						event.preventDefault();
 						event.stopImmediatePropagation();
 						this.makemenu(event.touches[0].clientX, event.touches[0].clientY, addinfo, other);
-					} else {
-						//
-						event.stopImmediatePropagation();
+					} else if (!hadSelection) {
+						// Don't stopImmediatePropagation — let iOS handle native text selection
 						hold = setTimeout(() => {
 							if (lastx ** 2 + lasty ** 2 > 10 ** 2) return;
+							// Check again: if iOS started text selection during the hold, don't override it
+							const currentSel = window.getSelection();
+							if (currentSel && currentSel.toString().length > 0) return;
 							this.makemenu(event.touches[0].clientX, event.touches[0].clientY, addinfo, other);
-							console.log(obj);
 						}, 500);
 					}
 				},
-				{passive: false},
+				{passive: true},
 			);
 			let lastx = 0;
 			let lasty = 0;

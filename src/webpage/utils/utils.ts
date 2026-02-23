@@ -370,7 +370,17 @@ export {Directory};
 
 const mobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 const iOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
-export {mobile, iOS};
+// iOS standalone PWA: use replaceState to avoid swipe-back gesture conflicts
+const isStandalone = window.matchMedia("(display-mode: standalone)").matches
+	|| (navigator as any).standalone === true;
+function navPushState(data: any, unused: string, url: string) {
+	if (mobile && isStandalone) {
+		history.replaceState(data, unused, url);
+	} else {
+		history.pushState(data, unused, url);
+	}
+}
+export {mobile, iOS, navPushState};
 
 const datalist = document.getElementById("instances");
 console.warn(datalist);

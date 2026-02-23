@@ -10,7 +10,7 @@ import {Contextmenu} from "./contextmenu.js";
 import {I18n} from "./i18n.js";
 import {Dialog, Float, FormError} from "./settings.js";
 import {Discovery} from "./discovery.js";
-import {createImg} from "./utils/utils.js";
+import {createImg, navPushState} from "./utils/utils.js";
 
 class Direct extends Guild {
 	channels: Group[];
@@ -124,7 +124,7 @@ class Direct extends Guild {
 	}
 	noChannel(addstate: boolean) {
 		if (addstate) {
-			history.pushState([this.id, undefined], "", "/channels/" + this.id);
+			navPushState([this.id, undefined], "", "/channels/" + this.id);
 		}
 		if (this.freindDiv) {
 			this.freindDiv.classList.add("viewChannel");

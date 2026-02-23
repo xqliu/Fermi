@@ -26,7 +26,7 @@ import {User} from "./user.js";
 import {I18n} from "./i18n.js";
 import {Emoji} from "./emoji.js";
 import {webhookMenu} from "./webhooks.js";
-import {createImg} from "./utils/utils.js";
+import {createImg, navPushState} from "./utils/utils.js";
 import {Sticker} from "./sticker.js";
 import {ProgessiveDecodeJSON} from "./utils/progessiveLoad.js";
 import {MarkDown} from "./markdown.js";
@@ -1821,7 +1821,7 @@ class Guild extends SnowFlake {
 			}
 		}
 		if (addstate) {
-			history.pushState([this.id, undefined], "", "/channels/" + this.id);
+			navPushState([this.id, undefined], "", "/channels/" + this.id);
 		}
 		this.localuser.pageTitle(I18n.guild.emptytitle());
 		const channelTopic = document.getElementById("channelTopic") as HTMLSpanElement;

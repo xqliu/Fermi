@@ -5,7 +5,7 @@ import {guildjson} from "./jsontypes.js";
 import {ReportMenu} from "./reporting/report.js";
 import {Dialog} from "./settings.js";
 import {getDeveloperSettings} from "./utils/storage/devSettings.js";
-import {createImg} from "./utils/utils.js";
+import {createImg, navPushState} from "./utils/utils.js";
 
 export class Discovery {
 	owner: Direct;
@@ -52,7 +52,7 @@ export class Discovery {
 		if (this.localuser.channelfocus) {
 			this.localuser.channelfocus.collectBox();
 		}
-		history.pushState(["@me", "discover"], "", "/channels/@me/discover");
+		navPushState(["@me", "discover"], "", "/channels/@me/discover");
 		this.localuser.pageTitle(I18n.discovery());
 
 		const channelTopic = document.getElementById("channelTopic") as HTMLSpanElement;

@@ -26,7 +26,7 @@ import {Member} from "./member.js";
 import {Voice} from "./voice.js";
 import {User} from "./user.js";
 import {I18n} from "./i18n.js";
-import {mobile, createImg, safeImg} from "./utils/utils.js";
+import {mobile, createImg, safeImg, navPushState} from "./utils/utils.js";
 import {webhookMenu} from "./webhooks.js";
 import {File} from "./file.js";
 import {Sticker} from "./sticker.js";
@@ -2621,7 +2621,7 @@ class Channel extends SnowFlake {
 			}
 		}
 		if (addstate) {
-			history.pushState(
+			navPushState(
 				[this.guild_id, this.id, aroundMessage],
 				"",
 				"/channels/" + this.guild_id + "/" + this.id + (aroundMessage ? `/${aroundMessage}` : ""),
