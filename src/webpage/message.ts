@@ -177,51 +177,6 @@ class Message extends SnowFlake {
 			},
 		);
 		Message.contextmenu.addButton(
-			() => "Select Text",
-			function (this: Message) {
-				if (!this.div) return;
-				const commentRow = this.div.querySelector(".commentrow");
-				if (!commentRow) return;
-				// Set global flag so touch handlers don't interfere
-				(window as any).__fermiTextSelect = true;
-				// Temporarily enable text selection on this message
-				(commentRow as HTMLElement).style.userSelect = "text";
-				(commentRow as HTMLElement).style.webkitUserSelect = "text";
-				// Select all text in the message
-				const range = document.createRange();
-				range.selectNodeContents(commentRow);
-				const sel = window.getSelection();
-				if (sel) {
-					sel.removeAllRanges();
-					sel.addRange(range);
-				}
-				// Cleanup when selection is lost
-				// Use a grace period: selection can briefly become empty when
-				// the user taps to adjust handles on iOS, so don't clean up
-				// until it's been empty for 2 consecutive checks (~1s).
-				let emptyCount = 0;
-				const checkSelection = setInterval(() => {
-					const s = window.getSelection();
-					if (!s || s.toString().length === 0) {
-						emptyCount++;
-						if (emptyCount >= 2) {
-							clearInterval(checkSelection);
-							(window as any).__fermiTextSelect = false;
-							(commentRow as HTMLElement).style.userSelect = "";
-							(commentRow as HTMLElement).style.webkitUserSelect = "";
-						}
-					} else {
-						emptyCount = 0;
-					}
-				}, 500);
-			},
-			{
-				icon: {
-					css: "svg-copy",
-				},
-			},
-		);
-		Message.contextmenu.addButton(
 			() => I18n.copyLink(),
 			function (this: Message) {
 				navigator.clipboard.writeText(
@@ -542,8 +497,6 @@ class Message extends SnowFlake {
 			this,
 			undefined,
 			(x) => {
-				//console.log(x,y);
-				if ((window as any).__fermiTextSelect) return;
 				if (!drag && x < 20) {
 					return;
 				}
@@ -552,7 +505,6 @@ class Message extends SnowFlake {
 			},
 			(x, y) => {
 				drag = false;
-				if ((window as any).__fermiTextSelect) return;
 				this.channel.moveForDrag(-1);
 				if (x > 60) {
 					const toggle = document.getElementById("maintoggle") as HTMLInputElement;

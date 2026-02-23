@@ -367,48 +367,25 @@ class Contextmenu<x, y> {
 		}
 		//NOTE not sure if this code is correct, seems fine at least for now
 		if (mobile) {
-			// Mobile: long press for context menu (like Discord/Telegram native apps)
-			// Native text selection is disabled on messages — use "Copy" in the menu
-			let hold: NodeJS.Timeout | undefined;
-			let x = 0;
-			let y = 0;
-			let lastx = 0;
-			let lasty = 0;
-			let menuShown = false;
-			obj.style.webkitUserSelect = "none";
-			obj.style.userSelect = "none";
-			obj.addEventListener(
-				"touchstart",
-				(event: TouchEvent) => {
-					// If text selection mode is active, don't interfere with iOS handles
-					if ((window as any).__fermiTextSelect) return;
-					x = event.touches[0].pageX;
-					y = event.touches[0].pageY;
-					lastx = 0;
-					lasty = 0;
-					menuShown = false;
-					hold = setTimeout(() => {
-						if (lastx * lastx + lasty * lasty > 10 * 10) return;
-						menuShown = true;
-						this.makemenu(event.touches[0].clientX, event.touches[0].clientY, addinfo, other);
-					}, 500);
-				},
-				{passive: true},
-			);
-			obj.addEventListener("touchend", () => {
-				if ((window as any).__fermiTextSelect) return;
-				if (hold) clearTimeout(hold);
-				if (!menuShown) touchEnd(lastx, lasty);
-			});
-			obj.addEventListener("touchmove", (event) => {
-				if ((window as any).__fermiTextSelect) return;
-				lastx = event.touches[0].pageX - x;
-				lasty = event.touches[0].pageY - y;
-				if (lastx * lastx + lasty * lasty > 10 * 10 && hold) {
-					clearTimeout(hold);
-					hold = undefined;
+			// Mobile: double-tap = context menu, long-press = iOS native text selection
+			let lastTap = 0;
+			let tapX = 0;
+			let tapY = 0;
+			obj.addEventListener("touchend", (event: TouchEvent) => {
+				const touch = event.changedTouches[0];
+				const now = Date.now();
+				const dx = touch.pageX - tapX;
+				const dy = touch.pageY - tapY;
+				if (now - lastTap < 350 && dx * dx + dy * dy < 20 * 20) {
+					// Double tap — show context menu
+					event.preventDefault();
+					this.makemenu(touch.clientX, touch.clientY, addinfo, other);
+					lastTap = 0;
+				} else {
+					lastTap = now;
+					tapX = touch.pageX;
+					tapY = touch.pageY;
 				}
-				touchDrag(lastx, lasty);
 			});
 		}
 		return func;
