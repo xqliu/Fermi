@@ -4362,6 +4362,8 @@ fieldset input[type="radio"] {
 		box-shadow:
 			0 0 14px var(--shadow),
 			0 0 28px var(--shadow);
+		max-height: 70vh;
+		overflow-y: auto;
 	}
 	.contextbutton {
 		width: 100%;
