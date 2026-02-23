@@ -1044,6 +1044,9 @@ export class SW {
 		if (this.worker) {
 			this.worker.postMessage({code: "ForceClear"});
 		}
+		// After clearing cache, reload so the browser fetches fresh files
+		// and checks for service.js updates
+		setTimeout(() => window.location.reload(), 500);
 	}
 }
 SW.start();
