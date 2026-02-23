@@ -509,13 +509,13 @@ class Message extends SnowFlake {
 			},
 			(x, y) => {
 				drag = false;
-				console.log(x, y);
+				// Don't trigger sidebar if user was selecting text
+				const sel = window.getSelection();
+				if (sel && sel.toString().length > 0) return;
 				this.channel.moveForDrag(-1);
 				if (x > 60) {
-					console.log("In here?");
 					const toggle = document.getElementById("maintoggle") as HTMLInputElement;
 					toggle.checked = false;
-					console.log(toggle);
 				}
 			},
 		);
