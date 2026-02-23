@@ -3072,10 +3072,7 @@ class Channel extends SnowFlake {
 		//messages.innerHTML="";
 		let scrollToBottom = false;
 		if (!id) {
-			if (this.lastreadmessageid && this.messages.has(this.lastreadmessageid)) {
-				id = this.lastreadmessageid;
-			} else if (this.lastreadmessageid && (id = this.findClosest(this.lastreadmessageid))) {
-			} else if (this.lastmessageid && this.messages.has(this.lastmessageid)) {
+			if (this.lastmessageid && this.messages.has(this.lastmessageid)) {
 				id = this.lastmessageid;
 				scrollToBottom = true;
 			}

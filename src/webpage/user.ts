@@ -735,7 +735,7 @@ class User extends SnowFlake {
 
 	buildpfp(guild: Guild | void | Member | null, hoverElm: void | HTMLElement): HTMLImageElement {
 		const pfp = createImg(this.getpfpsrc(), undefined, hoverElm);
-		pfp.loading = "lazy";
+		pfp.loading = "eager";
 		pfp.classList.add("pfp");
 		if (!this.webhook) pfp.classList.add("userid:" + this.id);
 		if (guild) {
