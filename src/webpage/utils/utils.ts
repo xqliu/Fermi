@@ -979,17 +979,30 @@ export class SW {
 	}
 	static async checkUpdates(): Promise<boolean> {
 		if (this.needsUpdate) return true;
-		// Also trigger browser's native SW update check (detects service.js changes)
-		if (this.registration) {
-			try { await this.registration.update(); } catch (e) { console.warn("[SW] registration.update() failed:", e); }
+		try {
+			// Fetch current version directly from server (bypass all caches)
+			const resp = await fetch("/getupdates", { cache: "no-store" });
+			if (!resp.ok) return false;
+			const serverVersion = (await resp.text()).trim();
+			const cachedVersion = localStorage.getItem("fermi_version") || "";
+			if (serverVersion !== cachedVersion) {
+				console.log("[Update] New version:", serverVersion, "cached:", cachedVersion);
+				// Store new version, clear SW cache, force reload
+				localStorage.setItem("fermi_version", serverVersion);
+				if (this.registration) {
+					try { await this.registration.update(); } catch (_) {}
+				}
+				try { await caches.delete("cache"); } catch (_) {}
+				this.needsUpdate = true;
+				const updateIcon = document.getElementById("updateIcon");
+				if (updateIcon) updateIcon.hidden = false;
+				return true;
+			}
+			return false;
+		} catch (e) {
+			console.error("[Update] check failed:", e);
+			return false;
 		}
-		return new Promise((res) => {
-			this.captureEvent("updates", (update, remove) => {
-				remove();
-				res(update.updates);
-			});
-			this.postMessage({code: "CheckUpdate"});
-		});
 	}
 	static async start() {
 		if (!("serviceWorker" in navigator)) return;
