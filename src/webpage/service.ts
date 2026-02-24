@@ -72,17 +72,23 @@ self.addEventListener("activate", async (event: any) => {
 		// Clear all old caches so no stale files remain
 		await caches.delete("cache");
 		// Re-download all files with the new version
+		let downloadOk = false;
 		try {
 			await downloadAllFiles();
 			console.log("[SW] All files re-cached for version", BUILD_VERSION);
+			downloadOk = true;
 		} catch (e) {
 			console.error("[SW] Failed to re-cache files:", e);
+			// Don't notify clients to reload — cache is empty/incomplete
+			// They'll continue with network fetches; checkCache will retry later
 		}
 		await (self as any).clients.claim();
-		// Notify all clients to reload for the new version
-		const clients = await (self as any).clients.matchAll();
-		for (const client of clients) {
-			client.postMessage({ code: "newVersion", version: BUILD_VERSION });
+		// Only notify clients to reload if we successfully cached all new files
+		if (downloadOk) {
+			const clients = await (self as any).clients.matchAll();
+			for (const client of clients) {
+				client.postMessage({ code: "newVersion", version: BUILD_VERSION });
+			}
 		}
 	})());
 });
