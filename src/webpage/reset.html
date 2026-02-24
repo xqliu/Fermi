@@ -1,30 +1,48 @@
-<!doctype html>
-<html lang="en">
-	<head>
-		<meta charset="utf-8" />
-		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-		<title>Lucky 5L</title>
-		<meta name="apple-mobile-web-app-title" content="Lucky 5L" />
-		<link rel="apple-touch-icon" href="/logo.webp" />
-		<link rel="manifest" href="/manifest.json" />
-		<meta content="Lucky 5L" property="og:title" />
-		<meta content="Join a community of people and start chatting!" property="og:description" />
-		<meta content="/logo.webp" property="og:image" />
-		<meta content="#4b458c" name="theme-color" />
-		<link href="/style.css" rel="stylesheet" />
-		<link href="/themes.css" rel="stylesheet" id="lightcss" />
-		<style>
-			body.no-theme {
-				background: #16191b;
-			}
-			@media (prefers-color-scheme: light) {
-				body.no-theme {
-					background: #9397bd;
-				}
-			}
-		</style>
-	</head>
-	<body class="no-theme">
-		<script src="/index.js" type="module"></script>
-	</body>
-</html>
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>修复中</title>
+<style>
+  body { background:#1a1a1a; color:#fff; font-family:-apple-system,sans-serif; text-align:center; padding:80px 24px 0; }
+  h1 { font-size: 48px; margin-bottom: 8px; }
+  h2 { font-weight: normal; color: #ccc; }
+  #status { color: #5865F2; font-size: 18px; margin-top: 32px; }
+  .done { color: #43b581 !important; }
+  .step { color: #999; font-size: 14px; margin: 4px 0; }
+</style>
+</head>
+<body>
+<h1>🔧</h1>
+<h2>正在修复，请稍等...</h2>
+<p id="status">清理中</p>
+<div id="steps"></div>
+<script>
+(async () => {
+  const status = document.getElementById('status');
+  const steps = document.getElementById('steps');
+  const log = (t) => { const p = document.createElement('p'); p.className='step'; p.textContent=t; steps.appendChild(p); };
+  try {
+    // 1. Unregister all service workers
+    if ('serviceWorker' in navigator) {
+      const regs = await navigator.serviceWorker.getRegistrations();
+      for (const r of regs) await r.unregister();
+      log('✓ 清理完成 (' + regs.length + ' 项)');
+    }
+    // 2. Delete all caches
+    const keys = await caches.keys();
+    for (const k of keys) await caches.delete(k);
+    if (keys.length) log('✓ 缓存已清除');
+    // 3. Clear storage
+    localStorage.clear();
+    sessionStorage.clear();
+    log('✓ 数据已重置');
+
+    status.textContent = '修复完成！正在重新打开...';
+    status.className = 'done';
+    setTimeout(() => { window.location.href = '/'; }, 2000);
+  } catch (e) {
+    status.textContent = '出错了：' + e.message;
+    log('请上滑关闭应用重新打开试试');
+  }
+})();
+</script>
+</body></html>

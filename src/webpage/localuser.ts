@@ -2883,6 +2883,9 @@ class Localuser {
 			update.addButtonInput("", I18n.localuser.clearCache(), () => {
 				SW.forceClear();
 			});
+			update.addButtonInput("", "深度修复（解决更新卡住）🔧", () => {
+				window.location.href = "/reset";
+			});
 
 			// Version display: compiled-in SHA vs latest deployed
 			const {FERMI_VERSION} = await import("./index.js");

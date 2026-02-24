@@ -21,6 +21,9 @@ echo "=== 2. Build (injects HEAD hash into getupdates + service.js) ==="
 node buildnode.js
 node build.js
 
+# Copy static files that build.js doesn't handle
+cp -f src/webpage/reset.html dist/webpage/reset.html 2>/dev/null || true
+
 echo ""
 echo "=== 3. Verify consistency ==="
 GETUPDATES=$(cat dist/webpage/getupdates)
