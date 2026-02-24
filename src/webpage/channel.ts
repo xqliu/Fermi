@@ -942,9 +942,32 @@ class Channel extends SnowFlake {
 	}
 	voiceUsers = new WeakRef(document.createElement("div"));
 	iconElm = new WeakRef(document.createElement("span") as HTMLSpanElement | safeImg);
+	private _isEmojiIcon(): boolean {
+		// Spacebar may store emoji strings as channel icon instead of image hashes
+		if (!this.icon) return false;
+		// Image hashes are hex strings (e.g. "a1b2c3d4..."); emoji/URLs are not
+		if (/^[0-9a-f]{32}$/i.test(this.icon)) return false;
+		if (this.icon.startsWith("http")) return false;
+		return true;
+	}
 	renderIcon() {
 		let icon = this.iconElm.deref();
 		if (this.icon && !this.localuser.perminfo.user.disableIcons) {
+			if (this._isEmojiIcon()) {
+				// Emoji icon — render as text span
+				if (!(icon instanceof HTMLSpanElement)) {
+					const old = icon;
+					icon = document.createElement("span");
+					this.iconElm = new WeakRef(icon);
+					if (old) {
+						try { old.before(icon); old.remove(); } catch {}
+					}
+				}
+				icon.classList = "";
+				icon.classList.add("space", "channel-emoji-icon");
+				icon.textContent = this.icon;
+				return icon;
+			}
 			if (icon instanceof HTMLImageElement) {
 				icon.setSrcs(this.iconUrl());
 			} else {

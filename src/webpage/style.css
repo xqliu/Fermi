@@ -1984,6 +1984,11 @@ span.instanceStatus {
 	width: 1em;
 	margin-right: 8px;
 }
+.channel-emoji-icon {
+	font-size: 1em;
+	line-height: 1;
+	text-align: center;
+}
 .capsflex {
 	margin-top: 8px;
 	align-items: center;
