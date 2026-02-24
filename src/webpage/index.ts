@@ -1,3 +1,6 @@
+// @ts-ignore — __BUILD_VERSION__ replaced at build time
+export const FERMI_VERSION: string = "__BUILD_VERSION__";
+
 import {Localuser} from "./localuser.js";
 import {Contextmenu} from "./contextmenu.js";
 import {mobile, Specialuser} from "./utils/utils.js";

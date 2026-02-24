@@ -227,7 +227,11 @@ async function build() {
 		throw new Error("FATAL: service.js missing __BUILD_VERSION__ placeholder — SW updates will break!");
 	}
 	await fs.writeFile(swPath, swContent.replace("__BUILD_VERSION__", revision));
-	console.log("Injected build version into service.js:", revision.slice(0, 8));
+	// Also inject into main bundle for client-side version display
+	const mainPath = path.join(__dirname, "dist", "webpage", "index.js");
+	const mainContent = await fs.readFile(mainPath, "utf-8");
+	await fs.writeFile(mainPath, mainContent.replaceAll("__BUILD_VERSION__", revision));
+	console.log("Injected build version into service.js + index.js:", revision.slice(0, 8));
 
 	console.time("Building Service File");
 	const dir = await crawlDir(path.join(__dirname, "dist", "webpage"));
