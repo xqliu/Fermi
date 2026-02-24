@@ -942,18 +942,22 @@ class Channel extends SnowFlake {
 	}
 	voiceUsers = new WeakRef(document.createElement("div"));
 	iconElm = new WeakRef(document.createElement("span") as HTMLSpanElement | safeImg);
-	private _isEmojiIcon(): boolean {
-		// Spacebar may store emoji strings as channel icon instead of image hashes
-		if (!this.icon) return false;
-		// Image hashes are hex strings (e.g. "a1b2c3d4..."); emoji/URLs are not
-		if (/^[0-9a-f]{32}$/i.test(this.icon)) return false;
-		if (this.icon.startsWith("http")) return false;
-		return true;
+	private _iconType(): "hash" | "url" | "emoji" {
+		if (!this.icon) return "hash"; // shouldn't be called without icon
+		if (/^[0-9a-f]{32}$/i.test(this.icon)) return "hash";
+		if (this.icon.startsWith("http")) return "url";
+		return "emoji";
+	}
+	private _resolveIconUrl(): string {
+		if (!this.icon) return this.iconUrl();
+		const t = this._iconType();
+		if (t === "url") return this.icon; // Spacebar: full URL stored directly
+		return this.iconUrl(); // Discord: hex hash → CDN path
 	}
 	renderIcon() {
 		let icon = this.iconElm.deref();
 		if (this.icon && !this.localuser.perminfo.user.disableIcons) {
-			if (this._isEmojiIcon()) {
+			if (this._iconType() === "emoji") {
 				// Emoji icon — render as text span
 				if (!(icon instanceof HTMLSpanElement)) {
 					const old = icon;
@@ -968,12 +972,13 @@ class Channel extends SnowFlake {
 				icon.textContent = this.icon;
 				return icon;
 			}
+			const imgUrl = this._resolveIconUrl();
 			if (icon instanceof HTMLImageElement) {
-				icon.setSrcs(this.iconUrl());
+				icon.setSrcs(imgUrl);
 			} else {
 				const old = icon;
 				const div = this.html?.deref();
-				icon = createImg(this.iconUrl(), undefined, div, "icon");
+				icon = createImg(imgUrl, undefined, div, "icon");
 				this.iconElm = new WeakRef(icon);
 				if (old) {
 					try {
