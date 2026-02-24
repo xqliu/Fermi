@@ -155,19 +155,27 @@ let fails = 0;
 async function getfile(req: Request): Promise<Response> {
 	checkCache();
 	if (!samedomain(req.url) || enabled === "false" || (enabled === "offlineOnly" && !offline)) {
-		const response = await fetch(req.clone());
-		if (samedomain(req.url)) {
-			if (enabled === "offlineOnly" && response.ok) {
-				putInCache(toPath(req.url), response.clone());
-			}
-			if (!response.ok) {
-				fails++;
-				if (fails > 5) {
-					offline = true;
+		try {
+			const response = await fetch(req.clone());
+			if (samedomain(req.url)) {
+				if (enabled === "offlineOnly" && response.ok) {
+					putInCache(toPath(req.url), response.clone());
+				}
+				if (!response.ok) {
+					fails++;
+					if (fails > 5) {
+						offline = true;
+					}
 				}
 			}
+			return response;
+		} catch (e) {
+			console.error("[SW] fetch failed for", req.url, e);
+			// Try cache fallback before giving up
+			const cached = await caches.match(toPath(req.url));
+			if (cached) return cached;
+			throw e; // no cache, rethrow — browser shows native error page
 		}
-		return response;
 	}
 
 	let path = toPath(req.url);
