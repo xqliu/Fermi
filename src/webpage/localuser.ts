@@ -124,13 +124,37 @@ class Localuser {
 	private _networkListenersActive = false;
 	private _reconnecting = false;
 	private _resumedSuccessfully = false;
+	private _heartbeatAckPending = false;
 	private _onVisibilityChange = () => {
 		if (document.visibilityState === "visible") this._checkAndReconnect();
 	};
 	private _onNetworkResume = () => this._checkAndReconnect();
 	private _checkAndReconnect() {
 		if (this._reconnecting) return;
-		// Only reconnect if WS is CLOSED or CLOSING — not if it's still CONNECTING
+		// If WS appears OPEN, probe it with a heartbeat + 5s timeout
+		if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+			if (this._heartbeatAckPending) return; // already probing
+			this._heartbeatAckPending = true;
+			try {
+				this.ws.send(JSON.stringify({op: 1, d: this.lastSequence}));
+			} catch {
+				// send failed — connection is dead
+				this.ws.close();
+				this._heartbeatAckPending = false;
+				// fall through to reconnect below
+			}
+			// If ACK arrives, op 11 handler will clear _heartbeatAckPending
+			// If not, force close after 5s
+			const probeWs = this.ws;
+			setTimeout(() => {
+				if (this._heartbeatAckPending && this.ws === probeWs) {
+					console.warn("[probe] no heartbeat ACK in 5s, forcing close");
+					this.ws?.close();
+				}
+				this._heartbeatAckPending = false;
+			}, 5000);
+			return;
+		}
 		if (!this.ws || this.ws.readyState === WebSocket.CLOSED || this.ws.readyState === WebSocket.CLOSING) {
 			// Cancel any pending scheduled reconnect to avoid duplicate WS connections
 			if (this.reconnectTimeout) {
@@ -1223,6 +1247,7 @@ class Localuser {
 			this.heartbeat_interval = temp.d.heartbeat_interval;
 			this.ws.send(JSON.stringify({op: 1, d: this.lastSequence}));
 		} else if (temp.op === 11) {
+			this._heartbeatAckPending = false; // probe succeeded — connection is alive
 			if (this.heartbeatTimer) clearTimeout(this.heartbeatTimer);
 			const currentWs = this.ws; // capture ref to detect stale timer
 			this.heartbeatTimer = setTimeout(() => {
