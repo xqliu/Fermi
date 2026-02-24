@@ -994,15 +994,13 @@ export class SW {
 			const resp = await fetch("/getupdates", { cache: "no-store" });
 			if (!resp.ok) return false;
 			const serverVersion = (await resp.text()).trim();
-			const cachedVersion = localStorage.getItem("fermi_version") || "";
-			if (serverVersion !== cachedVersion) {
-				console.log("[Update] New version:", serverVersion, "cached:", cachedVersion);
-				// Store new version, clear SW cache, force reload
-				localStorage.setItem("fermi_version", serverVersion);
+			// Compare against compiled-in version (accurate) rather than localStorage (unreliable)
+			const {FERMI_VERSION} = await import("../index.js");
+			if (serverVersion !== FERMI_VERSION) {
+				console.log("[Update] New version:", serverVersion, "running:", FERMI_VERSION);
 				if (this.registration) {
 					try { await this.registration.update(); } catch (_) {}
 				}
-				try { await caches.delete("cache"); } catch (_) {}
 				this.needsUpdate = true;
 				const updateIcon = document.getElementById("updateIcon");
 				if (updateIcon) updateIcon.hidden = false;
