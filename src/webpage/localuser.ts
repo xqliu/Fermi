@@ -138,10 +138,9 @@ class Localuser {
 			try {
 				this.ws.send(JSON.stringify({op: 1, d: this.lastSequence}));
 			} catch {
-				// send failed — connection is dead
+				// send threw — close WS, close handler will reconnect
 				this.ws.close();
 				this._heartbeatAckPending = false;
-				// fall through to reconnect below
 			}
 			// If ACK arrives, op 11 handler will clear _heartbeatAckPending
 			// If not, force close after 5s
