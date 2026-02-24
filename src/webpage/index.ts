@@ -122,8 +122,8 @@ if (window.location.pathname.startsWith("/channels")) {
 					window.location.reload();
 					return;
 				}
-				const delay = Math.min(3000 * retryCount, 10000); // backoff: 3s, 6s, 9s, 10s, 10s
-				console.warn(`[init] WS failed (attempt ${retryCount}/5), retrying in ${delay/1000}s...`, e);
+				const delay = Math.min(3000 * retryCount, 10000);
+				console.error(`[init] WS failed (attempt ${retryCount}/5), error: ${e instanceof Error ? e.message : e}, retrying in ${delay/1000}s...`);
 				loaddesc.textContent = `连接失败，正在重试... (${retryCount}/5)`;
 				await new Promise((r) => setTimeout(r, delay));
 				await connectWithRetry();

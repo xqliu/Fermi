@@ -130,11 +130,13 @@ class Localuser {
 	};
 	private _onNetworkResume = () => this._checkAndReconnect();
 	private _checkAndReconnect() {
+		console.log(`[reconnect] _checkAndReconnect: ws=${this.ws ? 'exists' : 'null'}, readyState=${this.ws?.readyState}, _reconnecting=${this._reconnecting}`);
 		if (this._reconnecting) return;
 		// If WS appears OPEN, probe it with a heartbeat + 5s timeout
 		if (this.ws && this.ws.readyState === WebSocket.OPEN) {
 			if (this._heartbeatAckPending) return; // already probing
 			this._heartbeatAckPending = true;
+			console.log("[reconnect] WS appears OPEN, sending heartbeat probe");
 			try {
 				this.ws.send(JSON.stringify({op: 1, d: this.lastSequence}));
 			} catch {
@@ -605,7 +607,7 @@ class Localuser {
 			returny = res;
 			rejecty = rej;
 			ws.addEventListener("open", (_event) => {
-				console.log("WebSocket connected");
+				console.log(`[ws-open] resume=${resume} url=${ws.url.substring(0, 60)}...`);
 				if (resume) {
 					ws.send(
 						JSON.stringify({
@@ -713,20 +715,20 @@ class Localuser {
 
 		ws.addEventListener("close", async (event) => {
 			this.ws = undefined;
-			console.log("WebSocket closed with code " + event.code);
+			console.log(`[ws-close] code=${event.code} reason="${event.reason}" managedReconnect=${managedReconnect} errorBackoff=${this.errorBackoff}`);
 			rejecty(new Error(`WebSocket closed: ${event.code}`));
-			// If this connection is managed by an external retry loop (banner reconnect),
-			// don't start our own reconnect — let the caller handle it.
 			if (managedReconnect) return;
 			if (
 				(event.code > 1000 && event.code < 1016 && this.errorBackoff === 0) ||
 				(wsCodesRetry.has(event.code) && this.errorBackoff === 0)
 			) {
 				this.errorBackoff++;
+				console.log("[ws-close] fast path: attempting resume");
 				this.initwebsocket(true).then(() => {
+					console.log("[ws-close] fast resume succeeded");
 					this.loaduser();
 				}).catch((e) => {
-					console.warn("[ws] fast resume failed, reloading", e);
+					console.error("[ws-close] fast resume FAILED, reloading", e);
 					// Fast resume failed — simplest recovery is reload
 					safeReload();
 				});
