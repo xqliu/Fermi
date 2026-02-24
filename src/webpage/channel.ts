@@ -944,7 +944,7 @@ class Channel extends SnowFlake {
 	iconElm = new WeakRef(document.createElement("span") as HTMLSpanElement | safeImg);
 	private _iconType(): "hash" | "url" | "emoji" {
 		if (!this.icon) return "hash"; // shouldn't be called without icon
-		if (/^[0-9a-f]{32}$/i.test(this.icon)) return "hash";
+		if (/^(a_)?[0-9a-f]{32}$/i.test(this.icon)) return "hash";
 		if (this.icon.startsWith("http")) return "url";
 		return "emoji";
 	}
