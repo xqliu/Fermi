@@ -3078,7 +3078,8 @@ class Channel extends SnowFlake {
 			}
 		}
 		if (!id) {
-			if (!removetitle) {
+			// Only show "no messages" if the container is actually empty
+			if (!removetitle && messages.querySelectorAll(".messagediv").length === 0) {
 				const title = document.createElement("h2");
 				title.id = "removetitle";
 				title.textContent = I18n.noMessages();
