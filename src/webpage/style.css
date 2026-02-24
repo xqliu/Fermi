@@ -4342,7 +4342,7 @@ fieldset input[type="radio"] {
 		padding-right: 12px;
 	}
 	#realbox {
-		padding-bottom: 4px;
+		padding-bottom: 28px;
 	}
 	#replybox {
 		margin-left: 12px;
@@ -4909,17 +4909,6 @@ img.error::after {
 	gap: 6px;
 	z-index: 500;
 	pointer-events: none;
-}
-@media (max-width: 600px) {
-	#quick-bubbles {
-		position: static;
-		flex-direction: row;
-		justify-content: center;
-		gap: 12px;
-		padding: 4px 0 0 0;
-		pointer-events: auto;
-		z-index: auto;
-	}
 }
 .quick-bubble {
 	width: 48px;
