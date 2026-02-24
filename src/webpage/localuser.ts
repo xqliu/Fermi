@@ -2887,7 +2887,7 @@ class Localuser {
 			// Version display: compiled-in SHA vs latest deployed
 			const {FERMI_VERSION} = await import("./index.js");
 			const localVer = FERMI_VERSION.substring(0, 8);
-			const serverVer = await fetch("/getupdates", {cache: "no-store"})
+			const serverVer = await fetch("/getupdates?_=" + Date.now(), {cache: "no-store"})
 				.then(r => r.text()).then(t => t.trim().substring(0, 8)).catch(() => "?");
 			const match = localVer === serverVer ? "✅" : "⚠️ 需更新";
 			update.addText(`运行: ${localVer} | 最新: ${serverVer} ${match}`);
@@ -3643,7 +3643,7 @@ class Localuser {
 			jankInfo.addHTMLArea(img);
 			img.width = 128;
 			img.height = 128;
-			const ver = await (await fetch("/getupdates")).text();
+			const ver = await (await fetch("/getupdates?_=" + Date.now(), {cache: "no-store"})).text();
 			jankInfo.addMDText(
 				new MarkDown(
 					I18n.clientDesc(ver, window.location.origin, this.rights.allow + ""),

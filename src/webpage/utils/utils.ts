@@ -994,7 +994,8 @@ export class SW {
 		if (this.needsUpdate) return true;
 		try {
 			// Fetch current version directly from server (SW won't intercept /getupdates)
-			const resp = await fetch("/getupdates", { cache: "no-store" });
+			// Cache buster ensures this bypasses SW fetch handler AND any proxy cache
+			const resp = await fetch("/getupdates?_=" + Date.now(), { cache: "no-store" });
 			if (!resp.ok) return false;
 			const serverVersion = (await resp.text()).trim();
 			// Compare against compiled-in version (accurate) rather than localStorage (unreliable)
