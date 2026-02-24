@@ -368,8 +368,11 @@ class Directory {
 
 export {Directory};
 
-const mobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-const iOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+// iPadOS 13+ UA no longer contains "iPad" — detect via touch + Mac UA
+const mobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)
+	|| (navigator.maxTouchPoints > 1 && /Macintosh/i.test(navigator.userAgent));
+const iOS = /iPhone|iPad|iPod/i.test(navigator.userAgent)
+	|| (navigator.maxTouchPoints > 1 && /Macintosh/i.test(navigator.userAgent));
 // iOS standalone PWA: use replaceState to avoid swipe-back gesture conflicts
 const isStandalone = window.matchMedia("(display-mode: standalone)").matches
 	|| (navigator as any).standalone === true;
