@@ -969,6 +969,7 @@ class Channel extends SnowFlake {
 				}
 				icon.classList = "";
 				icon.classList.add("space", "channel-emoji-icon");
+				icon.style.fontFamily = '"Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif';
 				icon.textContent = this.icon;
 				return icon;
 			}

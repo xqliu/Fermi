@@ -828,14 +828,16 @@ class Localuser {
 						if (this.swapped) return;
 						reconnectText.textContent = "正在重新连接...";
 						// Try resume first, fall back to identify if rejected
+						const withTimeout = <T>(p: Promise<T>, ms: number): Promise<T> =>
+							Promise.race([p, new Promise<T>((_, rej) => setTimeout(() => rej(new Error("timeout")), ms))]);
 						const tryConnect = async () => {
 							try {
-								await this.initwebsocket(true, true);
+								await withTimeout(this.initwebsocket(true, true), 15000);
 							} catch {
-								// Resume rejected (4041/op:9) — retry with fresh identify
+								// Resume rejected/timeout — retry with fresh identify
 								console.log("[reconnect] resume failed, retrying with identify...");
 								try {
-									await this.initwebsocket(false, true);
+									await withTimeout(this.initwebsocket(false, true), 15000);
 								} catch (e2) {
 									console.error("[reconnect] identify also failed:", e2);
 									throw e2;
