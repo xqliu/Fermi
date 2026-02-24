@@ -3078,7 +3078,26 @@ class Channel extends SnowFlake {
 			}
 		}
 		if (!id) {
-			// Only show "no messages" if the container is actually empty
+			// No lastmessageid — try fetching latest message from API
+			// (Spacebar REST API often returns last_message_id=null)
+			try {
+				const resp = await fetch(this.info.api + "/channels/" + this.id + "/messages?limit=1", {
+					headers: this.localuser.headers,
+				});
+				if (resp.ok) {
+					const msgs = await resp.json();
+					if (msgs.length > 0) {
+						id = msgs[0].id;
+						this.setLastMessageId(id);
+						scrollToBottom = true;
+					}
+				}
+			} catch (e) {
+				console.error("[channel] failed to fetch latest message:", e);
+			}
+		}
+		if (!id) {
+			// Truly no messages in this channel
 			if (!removetitle && messages.querySelectorAll(".messagediv").length === 0) {
 				const title = document.createElement("h2");
 				title.id = "removetitle";
