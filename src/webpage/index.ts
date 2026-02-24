@@ -1,6 +1,17 @@
 // @ts-ignore — __BUILD_VERSION__ replaced at build time
 export const FERMI_VERSION: string = "__BUILD_VERSION__";
 
+// When a new SW activates and finishes re-caching, it sends "newVersion"
+// Reload to pick up all new files
+if ("serviceWorker" in navigator) {
+	navigator.serviceWorker.addEventListener("message", (event) => {
+		if (event.data?.code === "newVersion" && event.data.version !== FERMI_VERSION) {
+			console.log(`[update] New version ${event.data.version}, current ${FERMI_VERSION}, reloading`);
+			window.location.reload();
+		}
+	});
+}
+
 import {Localuser} from "./localuser.js";
 import {Contextmenu} from "./contextmenu.js";
 import {mobile, Specialuser} from "./utils/utils.js";

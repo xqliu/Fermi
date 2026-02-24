@@ -67,9 +67,24 @@ self.addEventListener("install", () => {
 });
 
 self.addEventListener("activate", async (event: any) => {
-	console.log("[SW] Activated, claiming clients");
-	event.waitUntil((self as any).clients.claim());
-	checkCache();
+	console.log("[SW] Activated, version:", BUILD_VERSION);
+	event.waitUntil((async () => {
+		// Clear all old caches so no stale files remain
+		await caches.delete("cache");
+		// Re-download all files with the new version
+		try {
+			await downloadAllFiles();
+			console.log("[SW] All files re-cached for version", BUILD_VERSION);
+		} catch (e) {
+			console.error("[SW] Failed to re-cache files:", e);
+		}
+		await (self as any).clients.claim();
+		// Notify all clients to reload for the new version
+		const clients = await (self as any).clients.matchAll();
+		for (const client of clients) {
+			client.postMessage({ code: "newVersion", version: BUILD_VERSION });
+		}
+	})());
 });
 async function tryToClose() {
 	const portArr = [...ports];
