@@ -184,8 +184,21 @@ class Localuser {
 					(document.getElementById("reconnect-banner") as HTMLElement)?.classList.remove("visible");
 				})
 				.catch((e) => {
-					console.error("[_checkAndReconnect] failed, reloading", e);
-					safeReload();
+					console.error("[_checkAndReconnect] resume failed, trying fresh identify", e);
+					// Resume failed — try fresh identify (non-resume)
+					this.initwebsocket(false).then(async () => {
+						this.loaduser();
+						this.outoffocus();
+						await this.init();
+						(document.getElementById("reconnect-banner") as HTMLElement)?.classList.remove("visible");
+					}).catch((e2) => {
+						console.error("[_checkAndReconnect] fresh identify also failed", e2);
+						// Show banner, let close handler retry
+						const banner = document.getElementById("reconnect-banner") as HTMLElement;
+						const text = document.getElementById("reconnect-text") as HTMLElement;
+						if (banner) banner.classList.add("visible");
+						if (text) text.textContent = "连接失败，等待重试...";
+					});
 				})
 				.finally(() => { this._reconnecting = false; });
 		}
@@ -728,9 +741,9 @@ class Localuser {
 					console.log("[ws-close] fast resume succeeded");
 					this.loaduser();
 				}).catch((e) => {
-					console.error("[ws-close] fast resume FAILED, reloading", e);
-					// Fast resume failed — simplest recovery is reload
-					safeReload();
+					console.error("[ws-close] fast resume FAILED, trying full reconnect", e);
+					this.errorBackoff = 0; // reset so _checkAndReconnect can proceed
+					this._checkAndReconnect();
 				});
 				return;
 			}
