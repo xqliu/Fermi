@@ -2879,6 +2879,13 @@ class Localuser {
 				SW.forceClear();
 			});
 
+			// Version display: local (what this page loaded with) vs server (latest deployed)
+			const localVer = localStorage.getItem("fermi_version")?.substring(0, 8) || "?";
+			const serverVer = await fetch("/getupdates", {cache: "no-store"})
+				.then(r => r.text()).then(t => t.trim().substring(0, 8)).catch(() => "?");
+			const match = localVer === serverVer ? "✅" : "⚠️ 需更新";
+			update.addText(`本地: ${localVer} | 服务器: ${serverVer} ${match}`);
+
 			// Push Notification Toggle
 			let pushLabel = "推送通知: 检查中...";
 			const getPushStatus = async (): Promise<string> => {
