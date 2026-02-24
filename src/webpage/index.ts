@@ -115,13 +115,17 @@ if (window.location.pathname.startsWith("/channels")) {
 				await finishLoading();
 			} catch (e) {
 				retryCount++;
-				if (retryCount > 10) {
-					loaddesc.textContent = "无法连接服务器，请稍后手动刷新";
+				if (retryCount > 5) {
+					// Mimic kill+reopen: clear session state and do a full reload
+					console.error("[init] 5 retries failed, clearing session and reloading");
+					sessionStorage.clear();
+					window.location.reload();
 					return;
 				}
-				console.warn(`[init] WS failed (attempt ${retryCount}), retrying in 3s...`, e);
-				loaddesc.textContent = `连接失败，正在重试... (${retryCount}/10)`;
-				await new Promise((r) => setTimeout(r, 3000));
+				const delay = Math.min(3000 * retryCount, 10000); // backoff: 3s, 6s, 9s, 10s, 10s
+				console.warn(`[init] WS failed (attempt ${retryCount}/5), retrying in ${delay/1000}s...`, e);
+				loaddesc.textContent = `连接失败，正在重试... (${retryCount}/5)`;
+				await new Promise((r) => setTimeout(r, delay));
 				await connectWithRetry();
 			}
 		};
