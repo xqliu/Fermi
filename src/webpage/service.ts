@@ -295,7 +295,7 @@ self.addEventListener("fetch", async (e) => {
 		return;
 	}
 	const pathname = new URL(req.url).pathname;
-	if (pathname.startsWith("/api/") || pathname === "/getupdates") {
+	if (pathname.startsWith("/api/") || pathname === "/getupdates" || pathname === "/reset") {
 		return;
 	}
 	try {
