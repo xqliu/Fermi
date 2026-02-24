@@ -167,7 +167,7 @@ class Localuser {
 				this.reconnectCountdown = undefined;
 			}
 			this._reconnecting = true;
-			this.initwebsocket(true)
+			this.initwebsocket(true, true)
 				.then(async () => {
 					this.loaduser();
 					if (this._resumedSuccessfully) {
@@ -186,7 +186,8 @@ class Localuser {
 				.catch((e) => {
 					console.error("[_checkAndReconnect] resume failed, trying fresh identify", e);
 					// Resume failed — try fresh identify (non-resume)
-					this.initwebsocket(false).then(async () => {
+					// Return this promise so .finally() waits for it
+					return this.initwebsocket(false, true).then(async () => {
 						this.loaduser();
 						this.outoffocus();
 						await this.init();
@@ -197,7 +198,9 @@ class Localuser {
 						const banner = document.getElementById("reconnect-banner") as HTMLElement;
 						const text = document.getElementById("reconnect-text") as HTMLElement;
 						if (banner) banner.classList.add("visible");
-						if (text) text.textContent = "连接失败，等待重试...";
+						if (text) text.textContent = "连接失败，10秒后重试...";
+						// Auto-retry after 10s (finally will have reset _reconnecting by then)
+						setTimeout(() => this._checkAndReconnect(), 10000);
 					});
 				})
 				.finally(() => { this._reconnecting = false; });
@@ -737,7 +740,7 @@ class Localuser {
 			) {
 				this.errorBackoff++;
 				console.log("[ws-close] fast path: attempting resume");
-				this.initwebsocket(true).then(() => {
+				this.initwebsocket(true, true).then(() => {
 					console.log("[ws-close] fast resume succeeded");
 					this.loaduser();
 				}).catch((e) => {
