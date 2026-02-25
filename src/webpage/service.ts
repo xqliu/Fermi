@@ -14,26 +14,33 @@ async function getAllFiles() {
 	const json: files = await files.json();
 	return json;
 }
-async function downloadAllFiles() {
-	async function cachePath(path: string, json: files) {
-		await Promise.all(
-			Object.entries(json).map(async ([name, thing]) => {
-				if (typeof thing === "string") {
-					const lpath = path + "/" + name;
-					if (lpath.endsWith(".map") && !dev) {
-						return;
-					}
-					const res = await fetch(lpath, { cache: "no-store" });
-					await putInCache(new URL(lpath, self.location.origin), res);
-				} else {
-					await cachePath(path + "/" + name, thing);
+// Directories that are large and loaded on-demand — skip during precache
+const LAZY_DIRS = new Set(["/emoji"]);
+
+async function cachePath(path: string, json: files) {
+	await Promise.all(
+		Object.entries(json).map(async ([name, thing]) => {
+			if (typeof thing === "string") {
+				const lpath = path + "/" + name;
+				if (lpath.endsWith(".map") && !dev) {
+					return;
 				}
-			}),
-		);
-	}
+				const res = await fetch(lpath, { cache: "no-store" });
+				await putInCache(new URL(lpath, self.location.origin), res);
+			} else {
+				const dirPath = path + "/" + name;
+				if (LAZY_DIRS.has(dirPath)) {
+					console.log("[SW] skipping lazy dir:", dirPath);
+					return;
+				}
+				await cachePath(dirPath, thing);
+			}
+		}),
+	);
+}
 
+async function downloadAllFiles() {
 	const json = await getAllFiles();
-
 	await cachePath("", json);
 }
 async function getFromCache(request: URL) {
