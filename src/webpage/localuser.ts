@@ -2492,6 +2492,7 @@ class Localuser {
 	messageCreate(messagep: messageCreateJson): void {
 		messagep.d.guild_id ??= "@me";
 		const channel = this.channelids.get(messagep.d.channel_id);
+		console.log(`[messageCreate] channel=${messagep.d.channel_id} found=${!!channel} initialized=${this.initialized} channelfocus=${this.channelfocus?.id}`);
 		if (channel) {
 			channel.messageCreate(messagep);
 			this.unreads();
