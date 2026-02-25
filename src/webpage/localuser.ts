@@ -188,9 +188,11 @@ class Localuser {
 					// Resume failed — try fresh identify (non-resume)
 					// Return this promise so .finally() waits for it
 					return this.initwebsocket(false, true).then(async () => {
+						console.log("[_checkAndReconnect] fresh identify succeeded, rebuilding UI");
 						this.loaduser();
 						this.outoffocus();
 						await this.init();
+						console.log("[_checkAndReconnect] init() complete, UI rebuilt");
 						(document.getElementById("reconnect-banner") as HTMLElement)?.classList.remove("visible");
 					}).catch((e2) => {
 						console.error("[_checkAndReconnect] fresh identify also failed", e2);
@@ -734,11 +736,15 @@ class Localuser {
 			console.log(`[ws-close] code=${event.code} reason="${event.reason}" managedReconnect=${managedReconnect} errorBackoff=${this.errorBackoff}`);
 			rejecty(new Error(`WebSocket closed: ${event.code}`));
 			if (managedReconnect) {
-				// managed reconnect closed — don't swallow it, trigger recovery
-				console.warn("[ws-close] managedReconnect closed, scheduling recovery");
-				this.errorBackoff = 0;
-				this._reconnecting = false; // clear flag so _checkAndReconnect doesn't bail
-				setTimeout(() => this._checkAndReconnect(), 1000);
+				// managed reconnect closed — the parent _checkAndReconnect's catch
+				// will handle retry via fresh identify, so don't start a competing one.
+				// Only schedule recovery if nobody else is handling it.
+				console.warn("[ws-close] managedReconnect closed, code:", event.code);
+				if (!this._reconnecting) {
+					// No parent _checkAndReconnect running — we need to recover
+					this.errorBackoff = 0;
+					setTimeout(() => this._checkAndReconnect(), 1000);
+				}
 				return;
 			}
 			if (
