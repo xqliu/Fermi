@@ -993,18 +993,30 @@ export class SW {
 	static async checkUpdates(): Promise<boolean> {
 		if (this.needsUpdate) return true;
 		try {
-			// Fetch current version directly from server (SW won't intercept /getupdates)
-			// Cache buster ensures this bypasses SW fetch handler AND any proxy cache
+			// Force SW update check — browser does byte-comparison of service.js
+			// This works even when fetch cache is unreliable (iOS Safari PWA)
+			let reg = this.registration;
+			if (!reg && "serviceWorker" in navigator) {
+				reg = await navigator.serviceWorker.getRegistration("/");
+			}
+			if (reg) {
+				await reg.update(); // forces browser to re-fetch service.js from network
+				// If a new SW was found, it will install and activate
+				if (reg.waiting || reg.installing) {
+					console.log("[Update] New SW detected via registration.update()");
+					this.needsUpdate = true;
+					const updateIcon = document.getElementById("updateIcon");
+					if (updateIcon) updateIcon.hidden = false;
+					return true;
+				}
+			}
+			// Also check /getupdates as a fallback (e.g. when SW is not available)
 			const resp = await fetch("/getupdates?_=" + Date.now(), { cache: "no-store" });
 			if (!resp.ok) return false;
 			const serverVersion = (await resp.text()).trim();
-			// Compare against compiled-in version (accurate) rather than localStorage (unreliable)
 			const {FERMI_VERSION} = await import("../index.js");
 			if (serverVersion !== FERMI_VERSION) {
 				console.log("[Update] New version:", serverVersion, "running:", FERMI_VERSION);
-				if (this.registration) {
-					try { await this.registration.update(); } catch (_) {}
-				}
 				this.needsUpdate = true;
 				const updateIcon = document.getElementById("updateIcon");
 				if (updateIcon) updateIcon.hidden = false;
