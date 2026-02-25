@@ -737,6 +737,7 @@ class Localuser {
 				// managed reconnect closed — don't swallow it, trigger recovery
 				console.warn("[ws-close] managedReconnect closed, scheduling recovery");
 				this.errorBackoff = 0;
+				this._reconnecting = false; // clear flag so _checkAndReconnect doesn't bail
 				setTimeout(() => this._checkAndReconnect(), 1000);
 				return;
 			}
