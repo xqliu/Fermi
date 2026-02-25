@@ -56,21 +56,28 @@ import "./404.js";
 
 if (window.location.pathname === "/app" || window.location.pathname === "/") {
 	// Check if user is logged in before redirecting
+	// Use replace() so /app and /login don't stay in history (prevents swipe-back to them)
 	try {
 		const info = JSON.parse(localStorage.getItem("userinfos") || "{}");
 		if (info.currentuser && info.users && Object.keys(info.users).length > 0) {
-			window.location.pathname = "/channels/@me";
+			window.location.replace("/channels/@me");
 		} else {
-			window.location.pathname = "/login";
+			window.location.replace("/login");
 		}
 	} catch {
-		window.location.pathname = "/login";
+		window.location.replace("/login");
 	}
 }
 export interface CustomHTMLDivElement extends HTMLDivElement {
 	markdown: MarkDown;
 }
 if (window.location.pathname.startsWith("/channels")) {
+	// Push a guard entry so swipe-back can never leave the app
+	// (catches any leftover login/app entries in history)
+	if (!history.state) {
+		history.replaceState({guard: true}, "", window.location.href);
+	}
+
 	let templateID = new URLSearchParams(window.location.search).get("templateID");
 	await I18n.done;
 	Localuser.loadFont();
@@ -214,13 +221,15 @@ if (window.location.pathname.startsWith("/channels")) {
 	const pasteImageElement = document.getElementById("pasteimage") as HTMLDivElement;
 	let replyingTo: Message | null = null;
 	window.addEventListener("popstate", (e) => {
-		if (e.state instanceof Object) {
+		if (e.state instanceof Object && !("guard" in e.state)) {
 			thisUser.goToState(e.state);
-		} else if (mobile) {
-			// Invalid state (e.g. iOS swipe-back past first page) — show sidebar
-			const toggle = document.getElementById("maintoggle") as HTMLInputElement;
-			if (toggle && !toggle.checked) toggle.checked = true;
-			// Push state back so we don't get stuck at the dead history entry
+		} else {
+			// Any back navigation to a non-app state (login, guard, null):
+			// show sidebar on mobile, and always re-push to prevent leaving the app
+			if (mobile) {
+				const toggle = document.getElementById("maintoggle") as HTMLInputElement;
+				if (toggle && !toggle.checked) toggle.checked = true;
+			}
 			history.pushState(null, "", window.location.href);
 		}
 	});

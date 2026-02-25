@@ -92,9 +92,9 @@ export async function makeLogin(
 				}
 				const redir = new URLSearchParams(window.location.search).get("goback");
 				if (redir && (!URL.canParse(redir) || new URL(redir).host === window.location.host)) {
-					window.location.href = redir;
+					window.location.replace(redir);
 				} else {
-					window.location.href = "/channels/@me";
+					window.location.replace("/channels/@me");
 				}
 			} else {
 				//@ts-ignore
