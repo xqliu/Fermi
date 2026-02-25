@@ -1,6 +1,28 @@
 // @ts-ignore — __BUILD_VERSION__ replaced at build time
 export const FERMI_VERSION: string = "__BUILD_VERSION__";
 
+// Startup version check: detect stale cache (especially iOS Safari PWA where
+// SW updates and fetch cache-busting are unreliable).
+// Uses XMLHttpRequest to bypass Service Worker fetch handler entirely.
+(function startupVersionCheck() {
+	try {
+		const xhr = new XMLHttpRequest();
+		xhr.open("GET", "/getupdates?_v=" + Date.now() + Math.random(), true);
+		xhr.setRequestHeader("Cache-Control", "no-cache, no-store");
+		xhr.setRequestHeader("Pragma", "no-cache");
+		xhr.onload = function() {
+			if (xhr.status === 200) {
+				const serverVersion = xhr.responseText.trim();
+				if (serverVersion && serverVersion !== FERMI_VERSION) {
+					console.log(`[startup] Version mismatch: running ${FERMI_VERSION}, server ${serverVersion}. Redirecting to /reset`);
+					window.location.href = "/reset";
+				}
+			}
+		};
+		xhr.send();
+	} catch (_) {}
+})();
+
 // When a new SW activates and finishes re-caching, it sends "newVersion"
 // Reload to pick up all new files
 if ("serviceWorker" in navigator) {
