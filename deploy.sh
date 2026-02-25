@@ -7,7 +7,7 @@ echo "Building..."
 npm run build 2>&1 | tail -3
 
 echo "Deploying..."
-rsync -a dist/webpage/ /var/www/fermi/
+rsync -a --delete dist/webpage/ /var/www/fermi/
 
 FULL_HASH=$(git rev-parse HEAD)
 SHORT_HASH=$(git rev-parse --short=8 HEAD)
