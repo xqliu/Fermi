@@ -131,6 +131,9 @@ class Localuser {
 	private _onNetworkResume = () => this._checkAndReconnect();
 	private _checkAndReconnect() {
 		console.log(`[reconnect] _checkAndReconnect: ws=${this.ws ? 'exists' : 'null'}, readyState=${this.ws?.readyState}, _reconnecting=${this._reconnecting}`);
+		// Debug: show reconnect state on screen (temporary)
+		const banner = document.getElementById("reconnect-text");
+		if (banner) banner.textContent = `重连中... (ws=${this.ws ? this.ws.readyState : 'null'}, reconn=${this._reconnecting})`;
 		if (this._reconnecting) return;
 		// If WS appears OPEN, probe it with a heartbeat + 5s timeout
 		if (this.ws && this.ws.readyState === WebSocket.OPEN) {
@@ -961,8 +964,11 @@ class Localuser {
 					}
 					break;
 				case "MESSAGE_CREATE":
+					console.log(`[EVENT] MESSAGE_CREATE initialized=${this.initialized} channel=${temp.d.channel_id}`);
 					if (this.initialized) {
 						this.messageCreate(temp);
+					} else {
+						console.warn("[EVENT] MESSAGE_CREATE DROPPED — not initialized!");
 					}
 					break;
 				case "MESSAGE_DELETE": {
