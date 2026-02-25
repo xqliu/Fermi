@@ -79,7 +79,10 @@ if (window.location.pathname.startsWith("/channels")) {
 	}
 
 	let templateID = new URLSearchParams(window.location.search).get("templateID");
+	const _loaddesc = document.getElementById("load-desc") as HTMLSpanElement;
+	if (_loaddesc) _loaddesc.textContent = "正在加载语言包...";
 	await I18n.done;
+	if (_loaddesc) _loaddesc.textContent = "正在初始化...";
 	Localuser.loadFont();
 
 	I18n.translatePage();

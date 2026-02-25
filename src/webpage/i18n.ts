@@ -16,23 +16,26 @@ class I18n {
 		res = res2;
 	});
 	static async create(lang: string) {
-		if (!(lang + ".json" in langs)) {
-			if (lang.includes("-")) lang = lang.split("-")[0];
+		try {
 			if (!(lang + ".json" in langs)) {
-				console.warn("Language " + lang + " not found, defaulting to en");
-				lang = "en";
+				if (lang.includes("-")) lang = lang.split("-")[0];
+				if (!(lang + ".json" in langs)) {
+					console.warn("Language " + lang + " not found, defaulting to en");
+					lang = "en";
+				}
 			}
-		}
 
-		const json = (await (await fetch("/translations/" + lang + ".json")).json()) as translation;
-		const translations: translation[] = [];
-		translations.push(json);
-		if (lang !== "en") {
-			translations.push((await (await fetch("/translations/en.json")).json()) as translation);
+			const json = (await (await fetch("/translations/" + lang + ".json")).json()) as translation;
+			const translations: translation[] = [];
+			translations.push(json);
+			if (lang !== "en") {
+				translations.push((await (await fetch("/translations/en.json")).json()) as translation);
+			}
+			this.lang = lang;
+			this.translations = translations;
+		} catch (e) {
+			console.error("[i18n] Failed to load translations, continuing with empty:", e);
 		}
-		this.lang = lang;
-		this.translations = translations;
-
 		res();
 	}
 	static translatePage() {
