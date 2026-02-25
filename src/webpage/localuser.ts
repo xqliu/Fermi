@@ -125,8 +125,16 @@ class Localuser {
 	private _reconnecting = false;
 	private _resumedSuccessfully = false;
 	private _heartbeatAckPending = false;
+	private _lastWsActivityAt = Date.now();
 	private _onVisibilityChange = () => {
-		if (document.visibilityState === "visible") this._checkAndReconnect();
+		if (document.visibilityState === "visible") {
+			// iOS lock-screen resume: timers/events can be frozen; proactively recover
+			if (Date.now() - this._lastWsActivityAt > 20000) {
+				console.warn("[resume] stale WS activity after visible, forcing reconnect probe");
+				try { this.ws?.close(4000, "resume stale"); } catch {}
+			}
+			this._checkAndReconnect();
+		}
 	};
 	private _onNetworkResume = () => this._checkAndReconnect();
 	private _checkAndReconnect() {
@@ -628,6 +636,7 @@ class Localuser {
 			returny = res;
 			rejecty = rej;
 			ws.addEventListener("open", (_event) => {
+				this._lastWsActivityAt = Date.now();
 				console.log(`[ws-open] resume=${resume} url=${ws.url.substring(0, 60)}...`);
 				if (resume) {
 					ws.send(
@@ -690,6 +699,7 @@ class Localuser {
 		let order = new Promise<void>((res) => res());
 
 		ws.addEventListener("message", async (event) => {
+			this._lastWsActivityAt = Date.now();
 			const temp2 = order;
 			order = new Promise<void>(async (res) => {
 				await temp2;
