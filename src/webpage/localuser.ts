@@ -733,7 +733,13 @@ class Localuser {
 			this.ws = undefined;
 			console.log(`[ws-close] code=${event.code} reason="${event.reason}" managedReconnect=${managedReconnect} errorBackoff=${this.errorBackoff}`);
 			rejecty(new Error(`WebSocket closed: ${event.code}`));
-			if (managedReconnect) return;
+			if (managedReconnect) {
+				// managed reconnect closed — don't swallow it, trigger recovery
+				console.warn("[ws-close] managedReconnect closed, scheduling recovery");
+				this.errorBackoff = 0;
+				setTimeout(() => this._checkAndReconnect(), 1000);
+				return;
+			}
 			if (
 				(event.code > 1000 && event.code < 1016 && this.errorBackoff === 0) ||
 				(wsCodesRetry.has(event.code) && this.errorBackoff === 0)
