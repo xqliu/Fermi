@@ -118,6 +118,12 @@ export async function makeLogin(
 
 	const email = form.addTextInput(I18n.htmlPages.emailField(), "login");
 	const password = form.addTextInput(I18n.htmlPages.pwField(), "password", {password: true});
+	// Auto-focus email input after render, especially important on iPad
+	// where focus can be lost to the background overlay
+	requestAnimationFrame(() => {
+		const input = email.input?.deref();
+		if (input) input.focus();
+	});
 	form.addCaptcha();
 	const a = document.createElement("a");
 	a.onclick = () => {

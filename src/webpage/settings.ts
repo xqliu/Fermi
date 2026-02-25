@@ -878,13 +878,17 @@ class Dialog {
 				removeAni(background);
 			}
 		};
-		background.tabIndex = 0;
-		background.focus();
 		background.onkeydown = (e) => {
 			if (e.key === "Escape" && hideOnClick) {
 				removeAni(background);
 			}
 		};
+		// Only focus background for dismissible dialogs (Escape handling).
+		// Non-dismissible dialogs (login) should not steal focus from inputs.
+		if (hideOnClick) {
+			background.tabIndex = 0;
+			background.focus();
+		}
 		return center;
 	}
 	hide() {
