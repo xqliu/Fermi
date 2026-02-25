@@ -338,6 +338,13 @@ if (window.location.pathname.startsWith("/channels")) {
 			event.stopImmediatePropagation();
 		}
 	});
+	// iOS Safari/PWA: Return key may bypass keydown preventDefault and insert
+	// a paragraph via beforeinput instead. Catch it here.
+	typebox.addEventListener("beforeinput", (event) => {
+		if (event.inputType === "insertParagraph" && !markdown.composing) {
+			event.preventDefault();
+		}
+	});
 	markdown.giveBox(typebox);
 	{
 		const searchBox = document.getElementById("searchBox") as CustomHTMLDivElement;
