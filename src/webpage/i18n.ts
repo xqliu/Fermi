@@ -25,11 +25,17 @@ class I18n {
 				}
 			}
 
-			const json = (await (await fetch("/translations/" + lang + ".json")).json()) as translation;
+			const fetchWithTimeout = (url: string, ms = 5000) => {
+				const controller = new AbortController();
+				const timer = setTimeout(() => controller.abort(), ms);
+				return fetch(url, {signal: controller.signal}).finally(() => clearTimeout(timer));
+			};
+
+			const json = (await (await fetchWithTimeout("/translations/" + lang + ".json")).json()) as translation;
 			const translations: translation[] = [];
 			translations.push(json);
 			if (lang !== "en") {
-				translations.push((await (await fetch("/translations/en.json")).json()) as translation);
+				translations.push((await (await fetchWithTimeout("/translations/en.json")).json()) as translation);
 			}
 			this.lang = lang;
 			this.translations = translations;
