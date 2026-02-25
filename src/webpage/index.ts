@@ -341,11 +341,13 @@ if (window.location.pathname.startsWith("/channels")) {
 			event.stopImmediatePropagation();
 		}
 	});
-	// iOS Safari/PWA: Return key may bypass keydown preventDefault and insert
-	// a paragraph via beforeinput instead. Catch it here.
+	// iOS/iPadOS: Return key may not fire key="Enter" on keydown/keyup reliably.
+	// Use beforeinput insertParagraph as the canonical Enter detection on touch devices.
 	typebox.addEventListener("beforeinput", (event) => {
 		if (event.inputType === "insertParagraph" && !markdown.composing) {
 			event.preventDefault();
+			// Trigger send via a synthetic Enter keyup event
+			handleEnter(new KeyboardEvent("keyup", {key: "Enter", shiftKey: false}));
 		}
 	});
 	markdown.giveBox(typebox);
