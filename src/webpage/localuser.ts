@@ -1263,16 +1263,33 @@ class Localuser {
 			console.log("heartbeat down");
 			// Clear any old heartbeat timer from previous connection
 			if (this.heartbeatTimer) clearTimeout(this.heartbeatTimer);
+			if (this._heartbeatWatchdog) clearTimeout(this._heartbeatWatchdog);
 			this.heartbeat_interval = temp.d.heartbeat_interval;
+			const initWs = this.ws;
 			this.ws.send(JSON.stringify({op: 1, d: this.lastSequence}));
+			// Watchdog: if no ACK within 15s, force close (catches silent WS death on iOS Safari PWA)
+			this._heartbeatWatchdog = setTimeout(() => {
+				if (this.ws === initWs && this.ws && this.ws.readyState === WebSocket.OPEN) {
+					console.warn("[heartbeat-watchdog] No initial ACK in 15s, forcing WS close");
+					this.ws.close(4000, "heartbeat timeout");
+				}
+			}, 15_000);
 		} else if (temp.op === 11) {
 			this._heartbeatAckPending = false; // probe succeeded — connection is alive
+			if (this._heartbeatWatchdog) clearTimeout(this._heartbeatWatchdog);
 			if (this.heartbeatTimer) clearTimeout(this.heartbeatTimer);
 			const currentWs = this.ws; // capture ref to detect stale timer
 			this.heartbeatTimer = setTimeout(() => {
 				if (this.ws !== currentWs || !this.ws) return;
 				if (this.connectionSucceed === 0) this.connectionSucceed = Date.now();
 				this.ws.send(JSON.stringify({op: 1, d: this.lastSequence}));
+				// Watchdog: if no ACK within 15s, force close
+				this._heartbeatWatchdog = setTimeout(() => {
+					if (this.ws === currentWs && this.ws && this.ws.readyState === WebSocket.OPEN) {
+						console.warn("[heartbeat-watchdog] No ACK in 15s, forcing WS close");
+						this.ws.close(4000, "heartbeat timeout");
+					}
+				}, 15_000);
 			}, this.heartbeat_interval);
 		} else {
 			console.log("Unhandled case " + temp.d, temp);
@@ -1414,6 +1431,7 @@ class Localuser {
 
 	heartbeat_interval: number = 0;
 	private heartbeatTimer: ReturnType<typeof setTimeout> | undefined;
+	private _heartbeatWatchdog: ReturnType<typeof setTimeout> | undefined;
 	updateChannel(json: channeljson): void {
 		const guild = this.guildids.get(json.guild_id || "@me");
 		if (guild) {
