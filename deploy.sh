@@ -9,6 +9,22 @@ npm run build 2>&1 | tail -3
 echo "Deploying..."
 rsync -a dist/webpage/ /var/www/fermi/
 
+FULL_HASH=$(git rev-parse HEAD)
+SHORT_HASH=$(git rev-parse --short=8 HEAD)
+COMMIT_UNIX=$(git show -s --format=%ct HEAD)
+COMMIT_MSG=$(git show -s --format=%s HEAD)
+COMMIT_ISO=$(date -u -d "@$COMMIT_UNIX" +"%Y-%m-%dT%H:%M:%SZ")
+
+python3 - <<PY > /var/www/fermi/version.json
+import json
+print(json.dumps({
+  "hash": "${FULL_HASH}",
+  "short": "${SHORT_HASH}",
+  "committedAt": "${COMMIT_ISO}",
+  "message": """${COMMIT_MSG}"""
+}, ensure_ascii=False))
+PY
+
 VERSION=$(cat /var/www/fermi/getupdates | head -c 8)
 echo "Deployed: $VERSION"
 
