@@ -2880,30 +2880,7 @@ class Localuser {
 					{initColor: prefs.accentColor},
 				);
 			}
-			{
-				const prefs = await getPreferences();
-				const options = [[null, I18n.noEmojiFont()], ...Localuser.fonts] as const;
-				const cur = prefs.emojiFont;
-				let index = options.findIndex((_) => _[1] == cur);
-				if (index === -1) index = 0;
-				tas.addSelect(
-					I18n.emojiSelect(),
-					async (index) => {
-						if (options[index][0]) {
-							prefs.emojiFont = options[index][1];
-						} else {
-							prefs.emojiFont = undefined;
-						}
-
-						await setPreferences(prefs);
-						Localuser.loadFont();
-					},
-					options.map((font) => font[1]),
-					{
-						defaultIndex: index,
-					},
-				);
-			}
+			// Emoji font selector removed — using system default emoji
 			{
 				const cur = prefs.renderJoinAvatars;
 				tas.addCheckboxInput(
@@ -4909,36 +4886,12 @@ class Localuser {
 		Map<string, (returns: memberjson | undefined) => void>
 	>();
 	readonly presences: Map<string, presencejson> = new Map();
-	static font?: FontFace;
+	// Emoji: use system default fonts, no custom font loading needed
 	static async loadFont() {
-		const prefs = await getPreferences();
-		const fontName = prefs.emojiFont;
-
-		if (this.font) {
-			//TODO see when/if this can be removed
-			//@ts-ignore this is stupid. it's been here since 2020
-			document.fonts.delete(this.font);
-		}
-
-		const realname = this.fonts.find((_) => _[1] === fontName)?.[0];
-		if (realname) {
-			const font = new FontFace("emojiFont", `url("/emoji/${realname}")`);
-			await font.load();
-			console.error("Loaded font:", fontName, "/", realname);
-			//TODO see when/if this can be removed
-			//@ts-ignore this is stupid. it's been here since 2020
-			document.fonts.add(font);
-			console.log(font);
-			this.font = font;
-		}
+		// no-op: system emoji fonts are used via CSS font-family fallback
 	}
 	static get fonts() {
-		return [
-			["NotoColorEmoji-Regular.ttf", "Noto Color Emoji"],
-			["OpenMoji-color-glyf_colr_0.woff2", "OpenMoji"],
-			["Twemoji-16.0.1.ttf", "Twemoji"],
-			["BlobmojiCompat.ttf", "Blobmoji"],
-		] as const;
+		return [] as const;
 	}
 	getMemberMap = new Map<string, Promise<Member | undefined>>();
 	async getMember(id: string, guildid: string): Promise<Member | undefined> {
