@@ -1995,11 +1995,26 @@ class Form implements OptionsElement<object> {
 			return;
 		}
 		if (this.fetchURL !== "") {
+			const button = this.button?.deref();
+			const origText = button?.textContent || "";
+			if (button) {
+				button.disabled = true;
+				button.classList.add("loading");
+				button.textContent = "登录中...";
+			}
+			const restoreButton = () => {
+				if (button) {
+					button.disabled = false;
+					button.classList.remove("loading");
+					button.textContent = origText;
+				}
+			};
 			const onSubmit = async (json: any) => {
 				try {
 					await this.onSubmit(json, build);
 				} catch (e) {
 					console.error(e);
+					restoreButton();
 					if (e instanceof FormError) {
 						this.handleError(e);
 					}
@@ -2033,6 +2048,7 @@ class Form implements OptionsElement<object> {
 						if (json.ticket) {
 						}
 						if (json.errors) {
+							restoreButton();
 							if (this.errors(json)) {
 								return;
 							}
@@ -2042,10 +2058,14 @@ class Form implements OptionsElement<object> {
 							json.message &&
 							typeof json.message === "string"
 						) {
+							restoreButton();
 							this.showPrimError(json.message);
 							return;
 						}
 						onSubmit(json);
+					})
+					.catch(() => {
+						restoreButton();
 					});
 			};
 			doFetch();

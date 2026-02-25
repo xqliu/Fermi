@@ -4054,6 +4054,11 @@ fieldset input[type="radio"] {
 	word-break: break-word;
 	overflow: hidden;
 	flex-shrink: 0;
+	transition: opacity 0.15s;
+}
+.FormSettings > button.loading {
+	opacity: 0.6;
+	cursor: wait;
 }
 .permbox {
 	display: flex;
