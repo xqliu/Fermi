@@ -191,8 +191,13 @@ if (window.location.pathname.startsWith("/channels")) {
 	window.addEventListener("popstate", (e) => {
 		if (e.state instanceof Object) {
 			thisUser.goToState(e.state);
+		} else if (mobile) {
+			// Invalid state (e.g. iOS swipe-back past first page) — show sidebar
+			const toggle = document.getElementById("maintoggle") as HTMLInputElement;
+			if (toggle && !toggle.checked) toggle.checked = true;
+			// Push state back so we don't get stuck at the dead history entry
+			history.pushState(null, "", window.location.href);
 		}
-		//console.log(e.state,"state:3")
 	});
 	let nonceMap = new Map<string, string>();
 	//@ts-expect-error unused right now, not needed
