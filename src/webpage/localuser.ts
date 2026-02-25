@@ -2972,7 +2972,8 @@ class Localuser {
 				const when = commitMeta.committedAt ? new Date(commitMeta.committedAt).toLocaleString() : "?";
 				const msg = (commitMeta.message || "").trim();
 				const short = (commitMeta.short || serverVer || "?").substring(0, 8);
-				update.addText(`最新提交: ${short} @ ${when}`);
+				update.addText(`最新提交: ${short}`);
+				update.addText(`提交时间: ${when}`);
 				if (msg) update.addText(`提交信息: ${msg}`);
 			}
 
