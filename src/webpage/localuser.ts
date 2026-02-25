@@ -2908,8 +2908,16 @@ class Localuser {
 			// Version display: compiled-in SHA vs latest deployed
 			const {FERMI_VERSION} = await import("./index.js");
 			const localVer = FERMI_VERSION.substring(0, 8);
-			const serverVer = await fetch("/getupdates?_=" + Date.now(), {cache: "no-store"})
-				.then(r => r.text()).then(t => t.trim().substring(0, 8)).catch(() => "?");
+			// Use XHR with cache-busting headers to guarantee no cache on iOS Safari
+			const serverVer = await new Promise<string>((resolve) => {
+				const xhr = new XMLHttpRequest();
+				xhr.open("GET", "/getupdates?_=" + Date.now() + "&r=" + Math.random());
+				xhr.setRequestHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+				xhr.setRequestHeader("Pragma", "no-cache");
+				xhr.onload = () => resolve(xhr.status === 200 ? xhr.responseText.trim().substring(0, 8) : "?");
+				xhr.onerror = () => resolve("?");
+				xhr.send();
+			});
 			const match = localVer === serverVer ? "✅" : "⚠️ 需更新";
 			update.addText(`运行: ${localVer} | 最新: ${serverVer} ${match}`);
 

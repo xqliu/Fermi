@@ -1011,9 +1011,16 @@ export class SW {
 				}
 			}
 			// Also check /getupdates as a fallback (e.g. when SW is not available)
-			const resp = await fetch("/getupdates?_=" + Date.now(), { cache: "no-store" });
-			if (!resp.ok) return false;
-			const serverVersion = (await resp.text()).trim();
+			// Use XHR with cache-busting headers — fetch + cache:"no-store" is unreliable on iOS Safari PWA
+			const serverVersion = await new Promise<string>((resolve, reject) => {
+				const xhr = new XMLHttpRequest();
+				xhr.open("GET", "/getupdates?_=" + Date.now() + "&r=" + Math.random());
+				xhr.setRequestHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+				xhr.setRequestHeader("Pragma", "no-cache");
+				xhr.onload = () => xhr.status === 200 ? resolve(xhr.responseText.trim()) : reject();
+				xhr.onerror = () => reject();
+				xhr.send();
+			});
 			const {FERMI_VERSION} = await import("../index.js");
 			if (serverVersion !== FERMI_VERSION) {
 				console.log("[Update] New version:", serverVersion, "running:", FERMI_VERSION);
