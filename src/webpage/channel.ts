@@ -2695,8 +2695,9 @@ class Channel extends SnowFlake {
 		} else if (this.localuser.channelfocus === this && !aroundMessage && !this.isForum()) {
 			if (this.lastmessageid)
 				this.infinite.focus(aroundMessage || this.lastmessageid, !!aroundMessage, true);
-			// Do not early-return here: after reconnect/lock-screen resume we must
-			// continue through putmessages/buildmessages to backfill missed messages.
+			// Normal fast-path: avoid rebuilding if already focused.
+			// Reconnect path sets needsBackfillOnce=true to force one pass of put/build messages.
+			if (!this.localuser.needsBackfillOnce) return;
 		}
 		this.guild.prevchannel = this;
 		this.guild.perminfo.prevchannel = this.id;
@@ -2756,6 +2757,7 @@ class Channel extends SnowFlake {
 		this.makereplybox();
 
 		if (getMessages) await this.buildmessages(aroundMessage);
+		if (this.localuser.needsBackfillOnce) this.localuser.needsBackfillOnce = false;
 		//loading.classList.remove("loading");
 	}
 	typingmap: Map<Member, number> = new Map();

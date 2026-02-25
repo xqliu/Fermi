@@ -124,6 +124,8 @@ class Localuser {
 	private _networkListenersActive = false;
 	private _reconnecting = false;
 	private _resumedSuccessfully = false;
+	// correctness: force exactly one message backfill after full reconnect
+	needsBackfillOnce = false;
 	private _heartbeatAckPending = false;
 	private _lastWsActivityAt = Date.now();
 	private _onVisibilityChange = () => {
@@ -184,7 +186,8 @@ class Localuser {
 					if (this._resumedSuccessfully) {
 						this._resumedSuccessfully = false;
 					} else {
-						// Full READY received — rebuild UI
+						// Full READY received — rebuild UI + one-time backfill
+						this.needsBackfillOnce = true;
 						this.outoffocus();
 						try {
 							await this.init();
@@ -201,6 +204,7 @@ class Localuser {
 					return this.initwebsocket(false, true).then(async () => {
 						console.log("[_checkAndReconnect] fresh identify succeeded, rebuilding UI");
 						this.loaduser();
+						this.needsBackfillOnce = true;
 						this.outoffocus();
 						await this.init();
 						console.log("[_checkAndReconnect] init() complete, UI rebuilt");
@@ -753,8 +757,9 @@ class Localuser {
 				// will handle retry via fresh identify, so don't start a competing one.
 				// Only schedule recovery if nobody else is handling it.
 				console.warn("[ws-close] managedReconnect closed, code:", event.code);
-				if (!this._reconnecting) {
-					// No parent _checkAndReconnect running — we need to recover
+				const needsRecover = !this.ws || this.ws.readyState === WebSocket.CLOSED || this.ws.readyState === WebSocket.CLOSING;
+				if (!this._reconnecting || needsRecover) {
+					// No parent recovery (or socket already dead) — recover now
 					this.errorBackoff = 0;
 					setTimeout(() => this._checkAndReconnect(), 1000);
 				}
@@ -773,6 +778,7 @@ class Localuser {
 						this._resumedSuccessfully = false;
 					} else {
 						// Resume unsupported/failed -> full READY path, must rebuild UI/messages
+						this.needsBackfillOnce = true;
 						this.outoffocus();
 						try {
 							await this.init();
