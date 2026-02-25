@@ -130,7 +130,9 @@ if (window.location.pathname.startsWith("/channels")) {
 		}
 
 		regSwap(thisUser);
+		loaddesc.textContent = "正在连接服务器...";
 		const finishLoading = async () => {
+			loaddesc.textContent = "正在加载频道...";
 			thisUser.loaduser();
 			await thisUser.init();
 			const loading = document.getElementById("loading") as HTMLDivElement;
@@ -146,6 +148,7 @@ if (window.location.pathname.startsWith("/channels")) {
 		let retryCount = 0;
 		const connectWithRetry = async () => {
 			try {
+				loaddesc.textContent = "正在连接服务器...";
 				await thisUser.initwebsocket();
 				retryCount = 0;
 				await finishLoading();
