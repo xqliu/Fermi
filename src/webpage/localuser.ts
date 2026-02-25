@@ -766,9 +766,20 @@ class Localuser {
 			) {
 				this.errorBackoff++;
 				console.log("[ws-close] fast path: attempting resume");
-				this.initwebsocket(true, true).then(() => {
-					console.log("[ws-close] fast resume succeeded");
+				this.initwebsocket(true, true).then(async () => {
+					console.log("[ws-close] fast reconnect succeeded");
 					this.loaduser();
+					if (this._resumedSuccessfully) {
+						this._resumedSuccessfully = false;
+					} else {
+						// Resume unsupported/failed -> full READY path, must rebuild UI/messages
+						this.outoffocus();
+						try {
+							await this.init();
+						} catch (e) {
+							console.error("[ws-close] fast path init() failed", e);
+						}
+					}
 				}).catch((e) => {
 					console.error("[ws-close] fast resume FAILED, trying full reconnect", e);
 					this.errorBackoff = 0; // reset so _checkAndReconnect can proceed

@@ -2695,7 +2695,8 @@ class Channel extends SnowFlake {
 		} else if (this.localuser.channelfocus === this && !aroundMessage && !this.isForum()) {
 			if (this.lastmessageid)
 				this.infinite.focus(aroundMessage || this.lastmessageid, !!aroundMessage, true);
-			return;
+			// Do not early-return here: after reconnect/lock-screen resume we must
+			// continue through putmessages/buildmessages to backfill missed messages.
 		}
 		this.guild.prevchannel = this;
 		this.guild.perminfo.prevchannel = this.id;
