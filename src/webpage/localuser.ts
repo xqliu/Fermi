@@ -2910,17 +2910,32 @@ class Localuser {
 			sw.onchange = (e) => {
 				SW.setMode(ServiceWorkerModeValues[e]);
 			};
-			update.addButtonInput("", I18n.localuser.CheckUpdate(), async () => {
-				const update = await SW.checkUpdates();
-				const text = update ? I18n.localuser.updatesYay() : I18n.localuser.noUpdates();
-				const d = new Dialog("");
-				d.options.addTitle(text);
-				if (update) {
-					d.options.addButtonInput("", I18n.localuser.refreshPage(), () => {
-						window.location.reload();
-					});
+			const checkBtn = update.addButtonInput("", I18n.localuser.CheckUpdate(), async () => {
+				const btn = checkBtn.buttonHtml;
+				const origText = btn?.textContent || "";
+				if (btn) {
+					btn.disabled = true;
+					btn.classList.add("loading");
+					btn.textContent = "";
 				}
-				d.show();
+				try {
+					const update = await SW.checkUpdates();
+					const text = update ? I18n.localuser.updatesYay() : I18n.localuser.noUpdates();
+					const d = new Dialog("");
+					d.options.addTitle(text);
+					if (update) {
+						d.options.addButtonInput("", I18n.localuser.refreshPage(), () => {
+							window.location.reload();
+						});
+					}
+					d.show();
+				} finally {
+					if (btn) {
+						btn.disabled = false;
+						btn.classList.remove("loading");
+						btn.textContent = origText;
+					}
+				}
 			});
 			update.addButtonInput("", I18n.localuser.clearCache(), () => {
 				SW.forceClear();

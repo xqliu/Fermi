@@ -4072,6 +4072,27 @@ fieldset input[type="radio"] {
 	opacity: 0.6;
 	cursor: wait;
 }
+button.loading {
+	position: relative;
+	min-width: 80px;
+	min-height: 32px;
+}
+button.loading::after {
+	content: "";
+	position: absolute;
+	top: 50%;
+	left: 50%;
+	width: 16px;
+	height: 16px;
+	margin: -8px 0 0 -8px;
+	border: 2px solid rgba(255, 255, 255, 0.3);
+	border-top-color: #fff;
+	border-radius: 50%;
+	animation: btn-spin 0.6s linear infinite;
+}
+@keyframes btn-spin {
+	to { transform: rotate(360deg); }
+}
 .permbox {
 	display: flex;
 	flex-wrap: wrap;
