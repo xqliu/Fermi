@@ -33,8 +33,6 @@ export class UserPreferences {
 	renderJoinAvatars: boolean = true;
 	theme: ThemeOption = ThemeOption.Dark;
 	accentColor: string = "#5865F2";
-	emojiFont?: string;
-
 	constructor(init?: Partial<UserPreferences>) {
 		Object.assign(this, init);
 	}
@@ -88,12 +86,8 @@ async function migrateOldPreferences(): Promise<void> {
 		mod = true;
 	}
 
-	const oldEmojiFont = localStorage.getItem("emoji-font");
-	if (oldEmojiFont !== null) {
-		prefs.emojiFont = oldEmojiFont;
-		localStorage.removeItem("emoji-font");
-		mod = true;
-	}
+	// Clean up old emoji-font key if present
+	localStorage.removeItem("emoji-font");
 
 	if (mod) {
 		// TODO: proper saving and versioning and crap...
