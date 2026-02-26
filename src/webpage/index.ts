@@ -134,7 +134,15 @@ if (window.location.pathname.startsWith("/channels")) {
 	try {
 		const current = sessionStorage.getItem("currentuser") || Localuser.users.currentuser;
 		if (!Localuser.users.users[current]) {
+			// Hide loading screen so login dialog is visible
+			const loading = document.getElementById("loading") as HTMLDivElement;
+			loading.classList.add("doneloading");
+			loading.classList.remove("loading");
 			thisUser = new Localuser(await new Promise<Specialuser>((res) => makeLogin(true, "", res)));
+			// Re-show loading screen for WS connection phase
+			loading.classList.remove("doneloading");
+			loading.classList.add("loading");
+			loaddesc.textContent = "正在连接服务器...";
 		} else {
 			thisUser = new Localuser(Localuser.users.users[current]);
 		}
