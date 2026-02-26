@@ -3709,11 +3709,9 @@ class Channel extends SnowFlake {
 			}
 		};
 		maybeUpdate();
-		ressy = async (e) => {
-			if (e == "NotOk") {
-				funcs?.void();
-				return;
-			}
+		ressy = async (_e) => {
+			// keep fake message on send failure so user can retry/delete manually
+			// (do not auto-remove it)
 		};
 		if (attachments.length === 0) {
 			const body = {
