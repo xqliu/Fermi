@@ -351,11 +351,11 @@ if (window.location.pathname.startsWith("/channels")) {
 		}
 	});
 	// iOS/iPadOS: Return key may not fire key="Enter" on keydown/keyup reliably.
-	// Use beforeinput insertParagraph as the canonical Enter detection on touch devices.
+	// Handle both insertParagraph and insertLineBreak from virtual keyboards.
 	typebox.addEventListener("beforeinput", (event) => {
-		if (event.inputType === "insertParagraph") {
+		if (event.inputType === "insertParagraph" || event.inputType === "insertLineBreak") {
 			event.preventDefault();
-			// Force composing off — insertParagraph means IME is done
+			// Force composing off — user confirmed input
 			markdown.composing = false;
 			// Trigger send directly
 			handleEnter(new KeyboardEvent("keyup", {key: "Enter", shiftKey: false}));
