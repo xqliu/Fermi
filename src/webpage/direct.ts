@@ -147,22 +147,29 @@ class Direct extends Guild {
 		container.classList.add("messagecontainer", "flexttb", "friendcontainer");
 
 		// Mobile UX: allow swipe-right on Friends page to reveal sidebar
+		// Bind on scrollWrap (not inner container), because Friends content is rebuilt frequently.
 		let touchStartX = 0;
 		let touchStartY = 0;
-		container.addEventListener("touchstart", (e: TouchEvent) => {
+		let swiped = false;
+		messages.ontouchstart = (e: TouchEvent) => {
 			if (!e.touches[0]) return;
 			touchStartX = e.touches[0].clientX;
 			touchStartY = e.touches[0].clientY;
-		});
-		container.addEventListener("touchend", (e: TouchEvent) => {
-			if (!e.changedTouches[0]) return;
-			const dx = e.changedTouches[0].clientX - touchStartX;
-			const dy = e.changedTouches[0].clientY - touchStartY;
+			swiped = false;
+		};
+		messages.ontouchmove = (e: TouchEvent) => {
+			if (swiped || !e.touches[0]) return;
+			const dx = e.touches[0].clientX - touchStartX;
+			const dy = e.touches[0].clientY - touchStartY;
 			if (dx > 50 && Math.abs(dy) < 40) {
 				const toggle = document.getElementById("maintoggle") as HTMLInputElement | null;
 				if (toggle) toggle.checked = false;
+				swiped = true;
 			}
-		});
+		};
+		messages.ontouchend = () => {
+			swiped = false;
+		};
 
 		messages.append(container);
 		const checkVoid = () => {
