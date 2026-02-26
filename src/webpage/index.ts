@@ -468,9 +468,8 @@ if (window.location.pathname.startsWith("/channels")) {
 				const dx = e.touches[0].clientX - startX;
 				const dy = e.touches[0].clientY - startY;
 				if (dx > 50 && Math.abs(dy) < 40) {
+					// Right swipe on member list should go back to message list only.
 					memberListToggle.checked = false;
-					const toggle = document.getElementById("maintoggle") as HTMLInputElement | null;
-					if (toggle) toggle.checked = false;
 				}
 			};
 		}
