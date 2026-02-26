@@ -582,7 +582,14 @@ class Localuser {
 		this.generateFavicon();
 	}
 	inrelation = new Set<User>();
+	// Saved typebox content across reconnects
+	private _savedTypebox = "";
 	outoffocus(): void {
+		// Preserve typebox content before clearing UI (reconnect scenario)
+		const typebox = document.getElementById("typebox");
+		if (typebox && typebox.textContent) {
+			this._savedTypebox = typebox.textContent;
+		}
 		const servers = document.getElementById("servers") as HTMLDivElement;
 		servers.innerHTML = "";
 		const channels = document.getElementById("channels") as HTMLDivElement;
@@ -1918,6 +1925,16 @@ class Localuser {
 			}
 			await guild.loadChannel(location[5], true, location[6]);
 			this.channelfocus = this.channelids.get(location[5]);
+		}
+		// Restore typebox content saved before reconnect
+		if (this._savedTypebox) {
+			const typebox = document.getElementById("typebox") as HTMLDivElement | null;
+			if (typebox) {
+				typebox.textContent = this._savedTypebox;
+				// @ts-ignore - markdown property added at runtime
+				if (typebox.markdown) typebox.markdown.boxupdate(Infinity);
+			}
+			this._savedTypebox = "";
 		}
 	}
 	loaduser(): void {
