@@ -509,13 +509,18 @@ if (window.location.pathname.startsWith("/channels")) {
 		e.preventDefault();
 		e.stopImmediatePropagation();
 	};
+	// Keep a persistent reference so iOS doesn't GC the input while camera is open
+	let _uploadInput: HTMLInputElement | null = null;
 	(document.getElementById("upload") as HTMLElement).onclick = () => {
+		if (!thisUser.channelfocus) return;
 		const input = document.createElement("input");
 		input.type = "file";
-		input.click();
 		input.multiple = true;
-		console.log("clicked");
-		if (!thisUser.channelfocus) return;
+		input.accept = "image/*,video/*,audio/*,*/*";
+		// Append to DOM so iOS keeps it alive during camera/photo picker
+		input.style.display = "none";
+		document.body.appendChild(input);
+		_uploadInput = input;
 		input.onchange = () => {
 			if (input.files) {
 				for (const file of Array.from(input.files)) {
@@ -526,7 +531,11 @@ if (window.location.pathname.startsWith("/channels")) {
 					imagesHtml.set(file, html);
 				}
 			}
+			// Clean up
+			input.remove();
+			if (_uploadInput === input) _uploadInput = null;
 		};
+		input.click();
 	};
 	const emojiTB = document.getElementById("emojiTB") as HTMLElement;
 	emojiTB.onmousedown = (e) => e.stopImmediatePropagation();
