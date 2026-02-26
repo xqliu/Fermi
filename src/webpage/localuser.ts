@@ -2924,7 +2924,13 @@ class Localuser {
 					const d = new Dialog("");
 					d.options.addTitle(text);
 					if (update) {
-						d.options.addButtonInput("", I18n.localuser.refreshPage(), () => {
+						const refreshBtn = d.options.addButtonInput("", I18n.localuser.refreshPage(), () => {
+							const b = refreshBtn.buttonHtml;
+							if (b) {
+								b.disabled = true;
+								b.classList.add("loading");
+								b.textContent = "";
+							}
 							window.location.reload();
 						});
 					}
