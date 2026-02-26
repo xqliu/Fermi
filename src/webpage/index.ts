@@ -300,6 +300,7 @@ if (window.location.pathname.startsWith("/channels")) {
 			}
 			typebox.innerHTML = "";
 			typebox.markdown.txt = [];
+			sessionStorage.removeItem(`draft:${channel.id}`);
 			try {
 				await new Promise<void>((mres, rej) =>
 					channel.sendMessage(

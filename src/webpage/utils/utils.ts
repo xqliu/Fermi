@@ -385,34 +385,23 @@ function navPushState(data: any, unused: string, url: string) {
 }
 export {mobile, iOS, navPushState};
 
-const datalist = document.getElementById("instances");
-console.warn(datalist);
-export const instancefetch = fetch("/instances.json")
-	.then((res) => res.json())
-	.then(
-		async (
-			json: {
-				name: string;
-				description?: string;
-				descriptionLong?: string;
-				image?: string;
-				url?: string;
-				display?: boolean;
-				online?: boolean;
-				uptime: {alltime: number; daytime: number; weektime: number};
-				urls: {
-					wellknown: string;
-					api: string;
-					cdn: string;
-					gateway: string;
-					login?: string;
-				};
-			}[],
-		) => {
-			await I18n.done;
-			instances = json;
-		},
-	);
+// Hardcoded instance — skip network fetch entirely
+instances = [{
+	name: "chat.llbrother.org",
+	description: "5L 聊天服务器",
+	image: "/logo.webp",
+	url: "https://chat.llbrother.org",
+	display: true,
+	online: true,
+	uptime: {alltime: 1, daytime: 1, weektime: 1},
+	urls: {
+		wellknown: "https://chat.llbrother.org",
+		api: "https://chat.llbrother.org/api",
+		cdn: "https://chat.llbrother.org",
+		gateway: "wss://chat.llbrother.org/api",
+	},
+}] as any;
+export const instancefetch = Promise.resolve();
 const stringURLMap = new Map<string, string>();
 
 const stringURLsMap = new Map<

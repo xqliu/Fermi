@@ -1937,6 +1937,12 @@ class Channel extends SnowFlake {
 		this.files = files;
 		this.htmls = html;
 		this.textSave = MarkDown.gatherBoxText(typebox);
+		// Persist draft to sessionStorage so it survives page refresh
+		if (this.textSave) {
+			sessionStorage.setItem(`draft:${this.id}`, this.textSave);
+		} else {
+			sessionStorage.removeItem(`draft:${this.id}`);
+		}
 		typebox.textContent = "";
 	}
 	curCommand?: Command;
@@ -2608,7 +2614,7 @@ class Channel extends SnowFlake {
 		if (!this.curCommand && !this.isForum()) {
 			const md = typebox.markdown;
 			md.owner = this;
-			typebox.textContent = this.textSave;
+			typebox.textContent = this.textSave || sessionStorage.getItem(`draft:${this.id}`) || "";
 			md.boxupdate(Infinity);
 		}
 		if (this.isForum()) {
