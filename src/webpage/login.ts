@@ -64,15 +64,6 @@ export async function makeLogin(
 	const dialog = new Dialog("");
 	const opt = dialog.options;
 	opt.addTitle(I18n.login.login());
-	const picker = opt.addInstancePicker(
-		(info) => {
-			form.fetchURL = trimTrailingSlashes(info.api) + "/auth/login";
-			recover(info, rec);
-		},
-		{
-			instance,
-		},
-	);
 	dialog.show(trasparentBg);
 
 	const form = opt.addForm(
@@ -113,8 +104,18 @@ export async function makeLogin(
 		},
 	);
 	const button = form.button.deref();
-	picker.giveButton(button);
 	button?.classList.add("createAccount");
+
+	// Single-instance mode: remove instance picker/check logic on login page.
+	const instanceInfo: InstanceInfo = {
+		value: "chat.llbrother.org",
+		wellknown: "https://chat.llbrother.org",
+		api: "https://chat.llbrother.org/api",
+		cdn: "https://chat.llbrother.org",
+		gateway: "wss://chat.llbrother.org/api",
+	};
+	form.fetchURL = trimTrailingSlashes(instanceInfo.api) + "/auth/login";
+	localStorage.setItem("instanceinfo", JSON.stringify(instanceInfo));
 
 	const email = form.addTextInput(I18n.htmlPages.emailField(), "login");
 	const password = form.addTextInput(I18n.htmlPages.pwField(), "password", {password: true});
@@ -132,6 +133,7 @@ export async function makeLogin(
 	};
 	a.textContent = I18n.htmlPages.noAccount();
 	const rec = document.createElement("div");
+	recover(instanceInfo, rec);
 	form.addHTMLArea(rec);
 	form.addHTMLArea(a);
 }
