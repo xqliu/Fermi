@@ -451,6 +451,29 @@ if (window.location.pathname.startsWith("/channels")) {
 			const toggle = document.getElementById("maintoggle") as HTMLInputElement;
 			toggle.checked = true;
 		};
+
+		// When member list is open, swipe-right should behave like tapping header-left ">"
+		// (close member list panel and reveal channel sidebar).
+		const sideContainDiv = document.getElementById("sideContainDiv") as HTMLDivElement | null;
+		if (sideContainDiv) {
+			let startX = 0;
+			let startY = 0;
+			sideContainDiv.ontouchstart = (e: TouchEvent) => {
+				if (!e.touches[0]) return;
+				startX = e.touches[0].clientX;
+				startY = e.touches[0].clientY;
+			};
+			sideContainDiv.ontouchmove = (e: TouchEvent) => {
+				if (!e.touches[0]) return;
+				const dx = e.touches[0].clientX - startX;
+				const dy = e.touches[0].clientY - startY;
+				if (dx > 50 && Math.abs(dy) < 40) {
+					memberListToggle.checked = false;
+					const toggle = document.getElementById("maintoggle") as HTMLInputElement | null;
+					if (toggle) toggle.checked = false;
+				}
+			};
+		}
 		memberListToggle.checked = false;
 	}
 	let dragendtimeout = setTimeout(() => {});
