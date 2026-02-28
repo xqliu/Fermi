@@ -1016,6 +1016,7 @@ class Localuser {
 				}
 				case "RESUMED":
 					this._resumedSuccessfully = true;
+					this.initialized = true; // Ensure events are processed after resume
 					break;
 				case "READY":
 					await this.gottenReady(temp as readyjson);
