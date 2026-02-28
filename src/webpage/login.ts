@@ -1,10 +1,16 @@
-import {InstanceInfo, adduser, Specialuser} from "./utils/utils.js";
+import {adduser, Specialuser} from "./utils/utils.js";
 import {I18n} from "./i18n.js";
-import {Dialog, FormError} from "./settings.js";
-import {makeRegister} from "./register.js";
-import {trimTrailingSlashes} from "./utils/netUtils";
 
-// Auto-redirect to app if user is already logged in
+const API = "https://chat.llbrother.org/api";
+const INSTANCE_INFO = {
+	value: "chat.llbrother.org",
+	wellknown: "https://chat.llbrother.org",
+	api: API,
+	cdn: "https://chat.llbrother.org",
+	gateway: "wss://chat.llbrother.org/api",
+};
+
+// Auto-redirect to app if already logged in
 if (window.location.pathname === "/login" || window.location.pathname === "/login/") {
 	try {
 		const info = JSON.parse(localStorage.getItem("userinfos") || "{}");
@@ -13,72 +19,87 @@ if (window.location.pathname === "/login" || window.location.pathname === "/logi
 		}
 	} catch {}
 }
-function generateRecArea(recover = document.getElementById("recover")) {
-	if (!recover) return;
-	recover.innerHTML = "";
-	const can = localStorage.getItem("canRecover");
-	if (can) {
-		const a = document.createElement("a");
-		a.textContent = I18n.login.recover();
-		a.href = "/reset" + window.location.search;
-		recover.append(a);
-	}
-}
-const recMap = new Map<string, Promise<boolean>>();
-async function recover(e: InstanceInfo, recover = document.getElementById("recover")) {
-	const prom = new Promise<boolean>(async (res) => {
-		if (!recover) {
-			res(false);
-			return;
-		}
-		recover.innerHTML = "";
-		try {
-			if (!(await recMap.get(e.api))) {
-				if (recMap.has(e.api)) {
-					throw Error("can't recover");
-				}
-				recMap.set(e.api, prom);
-				const json = (await (await fetch(e.api + "/policies/instance/config")).json()) as {
-					can_recover_account: boolean;
-				};
-				if (!json || !json.can_recover_account) throw Error("can't recover account");
-			}
-			res(true);
-			localStorage.setItem("canRecover", "true");
-			generateRecArea(recover);
-		} catch {
-			res(false);
-			localStorage.removeItem("canRecover");
-			generateRecArea(recover);
-		} finally {
-			res(false);
-		}
-	});
-}
 
 export async function makeLogin(
-	trasparentBg = false,
-	instance = "",
+	_trasparentBg = false,
+	_instance = "",
 	handle?: (user: Specialuser) => void,
 ) {
-	const dialog = new Dialog("");
-	const opt = dialog.options;
-	opt.addTitle(I18n.login.login());
-	dialog.show(trasparentBg);
+	localStorage.setItem("instanceinfo", JSON.stringify(INSTANCE_INFO));
 
-	const form = opt.addForm(
-		"",
-		(res) => {
-			if ("token" in res && typeof res.token == "string") {
+	// Build a simple login form with plain HTML elements
+	const overlay = document.createElement("div");
+	overlay.style.cssText = `
+		position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+		background: var(--secondary-bg, #2f3136);
+		z-index: 200; display: flex; align-items: center; justify-content: center;
+	`;
+
+	const box = document.createElement("div");
+	box.style.cssText = `
+		background: var(--primary-bg, #36393f); border-radius: 8px; padding: 32px;
+		width: 90%; max-width: 400px; color: var(--primary-text-color, #fff);
+	`;
+
+	const title = document.createElement("h2");
+	title.textContent = "登录";
+	title.style.cssText = "margin: 0 0 24px 0; text-align: center;";
+
+	const emailInput = document.createElement("input");
+	emailInput.type = "text";
+	emailInput.placeholder = "邮箱";
+	emailInput.autocomplete = "email";
+	emailInput.style.cssText = `
+		width: 100%; padding: 12px; margin-bottom: 16px; border: none;
+		border-radius: 4px; background: var(--secondary-bg, #2f3136);
+		color: var(--primary-text-color, #fff); font-size: 16px;
+		box-sizing: border-box; -webkit-appearance: none;
+	`;
+
+	const pwInput = document.createElement("input");
+	pwInput.type = "password";
+	pwInput.placeholder = "密码";
+	pwInput.autocomplete = "current-password";
+	pwInput.style.cssText = emailInput.style.cssText;
+
+	const errorDiv = document.createElement("div");
+	errorDiv.style.cssText = "color: #f04747; font-size: 14px; margin-bottom: 12px; display: none;";
+
+	const btn = document.createElement("button");
+	btn.textContent = "登录";
+	btn.style.cssText = `
+		width: 100%; padding: 12px; border: none; border-radius: 4px;
+		background: #5865f2; color: #fff; font-size: 16px; cursor: pointer;
+	`;
+
+	const doLogin = async () => {
+		const email = emailInput.value.trim();
+		const pw = pwInput.value;
+		if (!email || !pw) return;
+
+		btn.disabled = true;
+		btn.textContent = "登录中...";
+		errorDiv.style.display = "none";
+
+		try {
+			const res = await fetch(API + "/auth/login", {
+				method: "POST",
+				headers: {"Content-type": "application/json; charset=UTF-8"},
+				body: JSON.stringify({login: email, password: pw}),
+			});
+			const json = await res.json();
+
+			if (json.token) {
 				const u = adduser({
-					serverurls: JSON.parse(localStorage.getItem("instanceinfo") as string),
-					email: email.value,
-					token: res.token,
+					serverurls: INSTANCE_INFO,
+					email,
+					token: json.token,
 				});
-				u.username = email.value;
+				u.username = email;
+
 				if (handle) {
+					overlay.remove();
 					handle(u);
-					dialog.hide();
 					return;
 				}
 				const redir = new URLSearchParams(window.location.search).get("goback");
@@ -88,55 +109,33 @@ export async function makeLogin(
 					window.location.replace("/channels/@me");
 				}
 			} else {
-				//@ts-ignore
-				//TODO just type this to get rid of the ignore :P
-				const message = res.errors.at(0)._errors[0].message;
-				throw new FormError(password, message);
+				const msg = json.errors?.[0]?._errors?.[0]?.message || json.message || "登录失败";
+				errorDiv.textContent = msg;
+				errorDiv.style.display = "block";
 			}
-		},
-		{
-			submitText: I18n.login.login(),
-			method: "POST",
-			headers: {
-				"Content-type": "application/json; charset=UTF-8",
-			},
-			vsmaller: true,
-		},
-	);
-	const button = form.button.deref();
-	button?.classList.add("createAccount");
-
-	// Single-instance mode: remove instance picker/check logic on login page.
-	const instanceInfo: InstanceInfo = {
-		value: "chat.llbrother.org",
-		wellknown: "https://chat.llbrother.org",
-		api: "https://chat.llbrother.org/api",
-		cdn: "https://chat.llbrother.org",
-		gateway: "wss://chat.llbrother.org/api",
+		} catch (e) {
+			errorDiv.textContent = "网络错误，请重试";
+			errorDiv.style.display = "block";
+		} finally {
+			btn.disabled = false;
+			btn.textContent = "登录";
+		}
 	};
-	form.fetchURL = trimTrailingSlashes(instanceInfo.api) + "/auth/login";
-	localStorage.setItem("instanceinfo", JSON.stringify(instanceInfo));
 
-	const email = form.addTextInput(I18n.htmlPages.emailField(), "login");
-	const password = form.addTextInput(I18n.htmlPages.pwField(), "password", {password: true});
-	// Auto-focus email input after render, especially important on iPad
-	// where focus can be lost to the background overlay
-	requestAnimationFrame(() => {
-		const input = email.input?.deref();
-		if (input) input.focus();
-	});
-	form.addCaptcha();
-	const a = document.createElement("a");
-	a.onclick = () => {
-		dialog.hide();
-		makeRegister(trasparentBg, "", handle);
-	};
-	a.textContent = I18n.htmlPages.noAccount();
-	const rec = document.createElement("div");
-	recover(instanceInfo, rec);
-	form.addHTMLArea(rec);
-	form.addHTMLArea(a);
+	btn.onclick = doLogin;
+	// Enter key to submit
+	const onEnter = (e: KeyboardEvent) => { if (e.key === "Enter") doLogin(); };
+	emailInput.onkeydown = onEnter;
+	pwInput.onkeydown = onEnter;
+
+	box.append(title, emailInput, pwInput, errorDiv, btn);
+	overlay.append(box);
+	document.body.append(overlay);
+
+	// Focus email input
+	requestAnimationFrame(() => emailInput.focus());
 }
+
 await I18n.done;
 if (window.location.pathname.startsWith("/login")) {
 	makeLogin();
