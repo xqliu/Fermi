@@ -3695,19 +3695,11 @@ class Channel extends SnowFlake {
 					if (!resOnce && res?.status) {
 						resOnce = true;
 					}
-					// HTTP 200: message accepted by server.
-					// Remove loading style immediately instead of waiting for WS MESSAGE_CREATE.
-					funcs?.progress(1, 1);
-					const nonce = res.response?.nonce;
-					if (nonce) {
-						const fakeId = this.nonceMap.get(nonce);
-						if (fakeId) {
-							const fakeMsg = this.messages.get(fakeId);
-							if (fakeMsg) {
-								const html = this.fakeMessages.get(fakeMsg);
-								if (html) html.classList.remove("loadingMessage");
-							}
-						}
+					// Server confirmed: use response body as the real message.
+					// This replaces the fake message immediately — no WS dependency.
+					const serverMsg = res.response;
+					if (serverMsg && serverMsg.id) {
+						this.messageCreate({d: serverMsg} as messageCreateJson);
 					}
 				}
 				resolve();
