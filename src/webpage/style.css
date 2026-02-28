@@ -1664,7 +1664,7 @@ span.instanceStatus {
 	left: 0;
 	height: 100%;
 	width: 100%;
-	background: var(--loading-bg, var(--primary-bg, #36393f)) !important;
+	background: var(--loading-bg, inherit);
 	color: var(--loading-text);
 	text-align: center;
 	transition: transform 0.2s;
