@@ -1659,10 +1659,12 @@ span.instanceStatus {
 /* Loading */
 #loading {
 	z-index: 110;
-	position: absolute;
+	position: fixed;
+	top: 0;
+	left: 0;
 	height: 100%;
 	width: 100%;
-	background: var(--loading-bg, inherit) !important;
+	background: var(--loading-bg, var(--primary-bg, #36393f)) !important;
 	color: var(--loading-text);
 	text-align: center;
 	transition: transform 0.2s;
