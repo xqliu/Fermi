@@ -38,7 +38,7 @@
 
     status.textContent = '修复完成！正在重新打开...';
     status.className = 'done';
-    setTimeout(() => { window.location.href = '/'; }, 2000);
+    setTimeout(() => { window.location.href = '/?v=' + Date.now(); }, 2000);
   } catch (e) {
     status.textContent = '出错了：' + e.message;
     log('请上滑关闭应用重新打开试试');
