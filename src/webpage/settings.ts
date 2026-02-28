@@ -883,11 +883,12 @@ class Dialog {
 				removeAni(background);
 			}
 		};
-		// Only focus background for dismissible dialogs (Escape handling).
-		// Non-dismissible dialogs (login) should not steal focus from inputs.
+		// Enable Escape-to-close via keydown on background, but do NOT
+		// focus it — on iOS Safari, a focused overlay div prevents
+		// child inputs from receiving touch/focus events.
 		if (hideOnClick) {
 			background.tabIndex = 0;
-			background.focus();
+			// Don't auto-focus: let user tap inputs naturally.
 		}
 		return center;
 	}
