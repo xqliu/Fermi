@@ -130,8 +130,15 @@ class Localuser {
 	private _lastWsActivityAt = Date.now();
 	private _onVisibilityChange = () => {
 		if (document.visibilityState === "visible") {
+			const staleness = Date.now() - this._lastWsActivityAt;
+			// iOS PWA: if frozen for >2 minutes, full reload is most reliable
+			if (staleness > 120000) {
+				console.warn(`[resume] frozen for ${Math.round(staleness/1000)}s, reloading`);
+				window.location.reload();
+				return;
+			}
 			// iOS lock-screen resume: timers/events can be frozen; proactively recover
-			if (Date.now() - this._lastWsActivityAt > 20000) {
+			if (staleness > 20000) {
 				console.warn("[resume] stale WS activity after visible, forcing reconnect probe");
 				try { this.ws?.close(4000, "resume stale"); } catch {}
 			}
@@ -196,6 +203,12 @@ class Localuser {
 						}
 					}
 					(document.getElementById("reconnect-banner") as HTMLElement)?.classList.remove("visible");
+					// Also dismiss initial loading screen if still visible (e.g. iOS PWA resume)
+					const loading = document.getElementById("loading") as HTMLElement;
+					if (loading) {
+						loading.classList.add("doneloading");
+						loading.classList.remove("loading");
+					}
 				})
 				.catch((e) => {
 					console.error("[_checkAndReconnect] resume failed, trying fresh identify", e);
@@ -209,6 +222,11 @@ class Localuser {
 						await this.init();
 						console.log("[_checkAndReconnect] init() complete, UI rebuilt");
 						(document.getElementById("reconnect-banner") as HTMLElement)?.classList.remove("visible");
+						const loading = document.getElementById("loading") as HTMLElement;
+						if (loading) {
+							loading.classList.add("doneloading");
+							loading.classList.remove("loading");
+						}
 					}).catch((e2) => {
 						console.error("[_checkAndReconnect] fresh identify also failed", e2);
 						// Show banner, let close handler retry
