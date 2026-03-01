@@ -5,6 +5,7 @@ import {
 	instancefetch,
 	InstanceInfo,
 	removeAni,
+	mobile,
 } from "./utils/utils.js";
 import {Emoji} from "./emoji.js";
 import {I18n} from "./i18n.js";
@@ -2214,6 +2215,25 @@ class Settings extends Buttons {
 		document.body.append(background);
 		background.setAttribute("tabindex", "0");
 		background.focus();
+
+		// Mobile: swipe right to close settings
+		if (mobile) {
+			let swStartX = 0;
+			let swStartY = 0;
+			background.addEventListener("touchstart", (e: TouchEvent) => {
+				if (!e.touches[0]) return;
+				swStartX = e.touches[0].clientX;
+				swStartY = e.touches[0].clientY;
+			}, {passive: true});
+			background.addEventListener("touchend", (e: TouchEvent) => {
+				if (!e.changedTouches[0]) return;
+				const dx = e.changedTouches[0].clientX - swStartX;
+				const dy = e.changedTouches[0].clientY - swStartY;
+				if (dx > 80 && Math.abs(dy) < 60) {
+					this.hide();
+				}
+			});
+		}
 
 		this.html = background;
 	}
