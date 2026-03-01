@@ -788,13 +788,11 @@ class Localuser {
 					if (this._resumedSuccessfully) {
 						this._resumedSuccessfully = false;
 					} else {
-						// Resume unsupported/failed -> full READY path, rebuild UI
-						// Skip outoffocus() to avoid visual flash — init() will overwrite
+						// Resume unsupported/failed -> full READY path, must rebuild UI
 						this.needsBackfillOnce = true;
+						this.outoffocus();
 						try {
 							await this.init();
-							// Refresh current channel messages
-							if (this.channelfocus) this.channelfocus.getHTML(false);
 						} catch (e) {
 							console.error("[ws-close] fast path init() failed", e);
 						}
@@ -906,10 +904,10 @@ class Localuser {
 								this._resumedSuccessfully = false;
 								// RESUMED: server replays missed events, keep existing UI
 							} else {
-								// Full READY: rebuild UI without clearing first (avoid flash)
+								// Full READY: must rebuild UI
+								this.outoffocus();
 								try {
 									await this.init();
-									if (this.channelfocus) this.channelfocus.getHTML(false);
 								} catch (e) {
 									console.error("[reconnect] init() failed:", e);
 								}
