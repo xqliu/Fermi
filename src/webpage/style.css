@@ -4955,6 +4955,10 @@ img.error::after {
 	z-index: 500;
 	pointer-events: none;
 }
+/* Hide bubbles while loading screen is visible */
+body:has(#loading.loading) #quick-bubbles {
+	display: none;
+}
 .quick-bubble {
 	width: 48px;
 	display: flex;

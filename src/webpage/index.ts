@@ -78,15 +78,16 @@ import "./oauth2/auth.js";
 import "./audio/page.js";
 import "./404.js";
 
+let _forceChannelsInit = false;
 if (window.location.pathname === "/app" || window.location.pathname === "/") {
-	// Instead of navigating (which can silently fail in iOS PWA standalone),
-	// rewrite the URL in-place and fall through to the /channels handler.
+	// iOS PWA: replaceState may not update window.location.pathname synchronously.
+	// Use a flag to force entering the /channels init block.
 	try {
 		const info = JSON.parse(localStorage.getItem("userinfos") || "{}");
 		if (info.currentuser && info.users && Object.keys(info.users).length > 0) {
 			history.replaceState(null, "", "/channels/@me");
+			_forceChannelsInit = true;
 		} else {
-			// Login requires a real page load (different HTML)
 			safeNavigate("/login");
 		}
 	} catch {
@@ -96,7 +97,7 @@ if (window.location.pathname === "/app" || window.location.pathname === "/") {
 export interface CustomHTMLDivElement extends HTMLDivElement {
 	markdown: MarkDown;
 }
-if (window.location.pathname.startsWith("/channels")) {
+if (_forceChannelsInit || window.location.pathname.startsWith("/channels")) {
 	// Push a guard entry so swipe-back can never leave the app
 	// (catches any leftover login/app entries in history)
 	if (!history.state) {
