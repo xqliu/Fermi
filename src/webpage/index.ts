@@ -260,13 +260,14 @@ if (window.location.pathname.startsWith("/channels")) {
 				const scroller = scrollWrap.querySelector(".scroller") as HTMLDivElement | null;
 				if (!scroller || scroller === currentScroller) return;
 				currentScroller = scroller;
+				// Hide on channel switch — only show after user scrolls up
+				jumpBtn.hidden = true;
+				let userScrolled = false;
 				scroller.addEventListener("scroll", () => {
+					userScrolled = true;
 					const distFromBottom = scroller.scrollHeight - scroller.scrollTop - scroller.clientHeight;
 					jumpBtn.hidden = distFromBottom < 300;
 				});
-				// Check immediately in case already scrolled up
-				const distFromBottom = scroller.scrollHeight - scroller.scrollTop - scroller.clientHeight;
-				jumpBtn.hidden = distFromBottom < 300;
 			};
 			// Observe for scroller appearing (channel switch replaces .scroller)
 			new MutationObserver(bindScroller).observe(scrollWrap, {childList: true, subtree: true});
