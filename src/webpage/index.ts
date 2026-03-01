@@ -257,8 +257,10 @@ if (window.location.pathname.startsWith("/channels")) {
 			let currentScroller: HTMLDivElement | null = null;
 			const bindScroller = () => {
 				const scroller = scrollWrap.querySelector(".scroller") as HTMLDivElement | null;
+				console.log("[jump-btn] bindScroller called, scroller:", scroller ? "found" : "null", "same:", scroller === currentScroller);
 				if (!scroller || scroller === currentScroller) return;
 				currentScroller = scroller;
+				console.log("[jump-btn] bound scroll listener, scrollHeight:", scroller.scrollHeight, "clientHeight:", scroller.clientHeight);
 				scroller.addEventListener("scroll", () => {
 					const distFromBottom = scroller.scrollHeight - scroller.scrollTop - scroller.clientHeight;
 					jumpBtn.hidden = distFromBottom < 300;
