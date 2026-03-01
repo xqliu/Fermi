@@ -779,7 +779,10 @@ class Localuser {
 			) {
 				this.errorBackoff++;
 				console.log("[ws-close] fast path: attempting resume");
-				this.initwebsocket(true, true).then(async () => {
+				Promise.race([
+					this.initwebsocket(true, true),
+					new Promise((_, rej) => setTimeout(() => rej(new Error("fast resume timeout 15s")), 15000)),
+				]).then(async () => {
 					console.log("[ws-close] fast reconnect succeeded");
 					this.loaduser();
 					if (this._resumedSuccessfully) {
@@ -912,24 +915,27 @@ class Localuser {
 							reconnectBanner.classList.remove("visible");
 							console.log("done reconnecting");
 						}).catch(async (e) => {
-							console.error("[reconnect] failed, reloading in 5s...", e);
-							reconnectText.textContent = "连接失败，5秒后刷新...";
-							await new Promise((r) => setTimeout(r, 5000));
+							console.error("[reconnect] failed, retrying in 10s...", e);
+							reconnectText.textContent = "连接失败，10秒后重试...";
+							await new Promise((r) => setTimeout(r, 10000));
 							if (this.swapped) return;
-							safeReload();
+							// Retry reconnect instead of reloading (reload shows loading page)
+							this._reconnecting = false;
+							this._checkAndReconnect();
 						});
 					},
 					delayMs,
 				);
 			} else {
-				// Unrecoverable code — but still auto-reload after 5s so user doesn't get stuck
+				// Unrecoverable code — show reconnect banner and retry
 				console.error("[ws] unrecoverable close code:", event.code);
-				loaddesc.textContent = `连接断开 (${event.code})，5秒后刷新...`;
-				(document.getElementById("loading") as HTMLElement).classList.remove("doneloading");
-				(document.getElementById("loading") as HTMLElement).classList.add("loading");
+				reconnectBanner.classList.add("visible");
+				reconnectText.textContent = `连接断开 (${event.code})，10秒后重试...`;
 				setTimeout(() => {
-					safeReload();
-				}, 5000);
+					if (this.swapped) return;
+					this._reconnecting = false;
+					this._checkAndReconnect();
+				}, 10000);
 			}
 		});
 		console.log("here?");
