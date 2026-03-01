@@ -5068,5 +5068,5 @@ img.error::after {
 	border-top: 9px solid var(--primary-text, #dcddde);
 }
 .jump-to-bottom {
-	opacity: 0.7 !important;
+	opacity: 0.55 !important;
 }
