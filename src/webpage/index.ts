@@ -244,7 +244,7 @@ if (window.location.pathname.startsWith("/channels")) {
 		if (bubblesContainer && scrollWrap) {
 			const jumpBtn = document.createElement("div");
 			jumpBtn.classList.add("quick-bubble", "jump-to-bottom");
-			jumpBtn.dataset.channelId = "__jump_to_bottom__"; // prevent quickswitch from removing it
+
 			jumpBtn.hidden = true;
 			const iconWrap = document.createElement("div");
 			iconWrap.classList.add("quick-bubble-icon-wrap");

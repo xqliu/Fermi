@@ -115,7 +115,10 @@ export class QuickSwitcher {
 
 		// Remove bubbles no longer needed
 		for (const el of Array.from(this.container.children)) {
-			const id = (el as HTMLElement).dataset.channelId;
+			const htm = el as HTMLElement;
+			// Skip non-bubble elements (e.g. jump-to-bottom button)
+			if (htm.classList.contains("jump-to-bottom")) continue;
+			const id = htm.dataset.channelId;
 			if (!id || !wantedIds.has(id)) el.remove();
 		}
 
