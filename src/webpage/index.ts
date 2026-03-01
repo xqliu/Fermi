@@ -216,24 +216,36 @@ if (window.location.pathname.startsWith("/channels")) {
 	const channelw = document.getElementById("channelw");
 	console.log(channelw);
 
-	// Jump-to-bottom button
-	const jumpBtn = document.getElementById("jumpToBottom") as HTMLButtonElement | null;
-	const scrollWrap = document.getElementById("scrollWrap") as HTMLDivElement | null;
-	if (jumpBtn && scrollWrap) {
-		// Use MutationObserver to detect when infinite scroller adds its div
-		const observeScroll = () => {
-			const scroller = scrollWrap.querySelector(".scroller") as HTMLDivElement | null;
-			if (!scroller) return;
-			scroller.addEventListener("scroll", () => {
-				const distFromBottom = scroller.scrollHeight - scroller.scrollTop - scroller.clientHeight;
-				jumpBtn.hidden = distFromBottom < 300;
-			});
-		};
-		new MutationObserver(observeScroll).observe(scrollWrap, {childList: true, subtree: true});
-		jumpBtn.onclick = () => {
-			thisUser.channelfocus?.goToBottom();
+	// Jump-to-bottom button — sits inside quick-bubbles, aligned with recent channel bubbles
+	{
+		const bubblesContainer = document.getElementById("quick-bubbles");
+		const scrollWrap = document.getElementById("scrollWrap") as HTMLDivElement | null;
+		if (bubblesContainer && scrollWrap) {
+			const jumpBtn = document.createElement("div");
+			jumpBtn.classList.add("quick-bubble", "jump-to-bottom");
 			jumpBtn.hidden = true;
-		};
+			const iconWrap = document.createElement("div");
+			iconWrap.classList.add("quick-bubble-icon-wrap");
+			const arrow = document.createElement("div");
+			arrow.classList.add("jump-to-bottom-arrow");
+			iconWrap.appendChild(arrow);
+			jumpBtn.appendChild(iconWrap);
+			bubblesContainer.appendChild(jumpBtn);
+
+			const observeScroll = () => {
+				const scroller = scrollWrap.querySelector(".scroller") as HTMLDivElement | null;
+				if (!scroller) return;
+				scroller.addEventListener("scroll", () => {
+					const distFromBottom = scroller.scrollHeight - scroller.scrollTop - scroller.clientHeight;
+					jumpBtn.hidden = distFromBottom < 300;
+				});
+			};
+			new MutationObserver(observeScroll).observe(scrollWrap, {childList: true, subtree: true});
+			jumpBtn.onclick = () => {
+				thisUser.channelfocus?.goToBottom();
+				jumpBtn.hidden = true;
+			};
+		}
 	}
 
 	if (channelw)
