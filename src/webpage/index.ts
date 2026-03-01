@@ -192,7 +192,11 @@ if (window.location.pathname.startsWith("/channels")) {
 			try {
 				_debugLog(`WS 连接中... (attempt ${retryCount + 1})`);
 				loaddesc.textContent = "正在连接服务器...";
-				await thisUser.initwebsocket();
+				// Timeout WS connection — iOS PWA can hang indefinitely
+				await Promise.race([
+					thisUser.initwebsocket(),
+					new Promise((_, rej) => setTimeout(() => rej(new Error("WS timeout 15s")), 15000)),
+				]);
 				retryCount = 0;
 				await finishLoading();
 			} catch (e) {
