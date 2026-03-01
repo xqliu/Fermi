@@ -31,10 +31,9 @@
     const keys = await caches.keys();
     for (const k of keys) await caches.delete(k);
     if (keys.length) log('✓ 缓存已清除');
-    // 3. Clear storage
-    localStorage.clear();
+    // 3. Clear session storage (keep localStorage for login credentials)
     sessionStorage.clear();
-    log('✓ 数据已重置');
+    log('✓ 会话已重置');
 
     status.textContent = '修复完成！正在重新打开...';
     status.className = 'done';
