@@ -1,7 +1,7 @@
 import type { Localuser } from "./localuser";
 import type { Channel } from "./channel";
 
-const MAX_BUBBLES = 4;
+const MAX_BUBBLES = 5;
 const STORAGE_KEY = "qs_recents";
 
 export class QuickSwitcher {
