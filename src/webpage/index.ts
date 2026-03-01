@@ -80,8 +80,25 @@ if (window.location.pathname.startsWith("/channels")) {
 
 	let templateID = new URLSearchParams(window.location.search).get("templateID");
 	const _loaddesc = document.getElementById("load-desc") as HTMLSpanElement;
+	const _debugEl = document.getElementById("loading-debug") as HTMLElement | null;
+	const _debugLog = (msg: string) => {
+		const t = new Date().toLocaleTimeString();
+		if (_debugEl) _debugEl.textContent = `[${t}] ${msg}`;
+		console.log(`[startup] ${msg}`);
+	};
+	// Global loading timeout — if stuck for 15s, make debug info prominent
+	setTimeout(() => {
+		const loading = document.getElementById("loading");
+		if (loading && !loading.classList.contains("doneloading") && _debugEl) {
+			_debugEl.style.color = "#f04747";
+			_debugEl.style.fontSize = "12px";
+			_debugEl.textContent += " ⚠️ 加载超时";
+		}
+	}, 15000);
+	_debugLog("加载语言包...");
 	if (_loaddesc) _loaddesc.textContent = "正在加载语言包...";
 	await I18n.done;
+	_debugLog("语言包完成，初始化...");
 	if (_loaddesc) _loaddesc.textContent = "正在初始化...";
 	Localuser.loadFont();
 
@@ -133,6 +150,7 @@ if (window.location.pathname.startsWith("/channels")) {
 	const loaddesc = document.getElementById("load-desc") as HTMLSpanElement;
 	try {
 		const current = sessionStorage.getItem("currentuser") || Localuser.users.currentuser;
+		_debugLog(`user: ${current ? "found" : "none"}`);
 		if (!Localuser.users.users[current]) {
 			// Hide loading screen so login dialog is visible
 			const loading = document.getElementById("loading") as HTMLDivElement;
@@ -166,6 +184,7 @@ if (window.location.pathname.startsWith("/channels")) {
 		let retryCount = 0;
 		const connectWithRetry = async () => {
 			try {
+				_debugLog(`WS 连接中... (attempt ${retryCount + 1})`);
 				loaddesc.textContent = "正在连接服务器...";
 				await thisUser.initwebsocket();
 				retryCount = 0;
@@ -180,6 +199,7 @@ if (window.location.pathname.startsWith("/channels")) {
 					return;
 				}
 				const delay = Math.min(3000 * retryCount, 10000);
+				_debugLog(`WS 失败 #${retryCount}: ${e instanceof Error ? e.message : e}`);
 				console.error(`[init] WS failed (attempt ${retryCount}/5), error: ${e instanceof Error ? e.message : e}, retrying in ${delay/1000}s...`);
 				loaddesc.textContent = `连接失败，正在重试... (${retryCount}/5)`;
 				await new Promise((r) => setTimeout(r, delay));
@@ -188,6 +208,7 @@ if (window.location.pathname.startsWith("/channels")) {
 		};
 		connectWithRetry();
 	} catch (e) {
+		_debugLog(`启动异常: ${e instanceof Error ? e.message : e}`);
 		console.error(e);
 		loaddesc.textContent = I18n.accountNotStart();
 		thisUser = new Localuser(-1);
