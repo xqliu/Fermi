@@ -496,17 +496,19 @@ class Message extends SnowFlake {
 			obj,
 			this,
 			undefined,
-			(x) => {
+			(x, _y, startX) => {
+				// Only allow swipe-to-sidebar from the left edge (30px)
+				if (startX > 30) return;
 				if (!drag && x < 20) {
 					return;
 				}
 				drag = true;
 				this.channel.moveForDrag(Math.max(x, 0));
 			},
-			(x, y) => {
+			(x, _y, startX) => {
 				drag = false;
 				this.channel.moveForDrag(-1);
-				if (x > 60) {
+				if (startX <= 30 && x > 60) {
 					const toggle = document.getElementById("maintoggle") as HTMLInputElement;
 					toggle.checked = false;
 				}

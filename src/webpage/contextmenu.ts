@@ -326,8 +326,8 @@ class Contextmenu<x, y> {
 		obj: HTMLElement,
 		addinfo: x,
 		other: y,
-		touchDrag: (x: number, y: number) => unknown = () => {},
-		touchEnd: (x: number, y: number) => unknown = () => {},
+		touchDrag: (x: number, y: number, startX: number) => unknown = () => {},
+		touchEnd: (x: number, y: number, startX: number) => unknown = () => {},
 		click: "right" | "left" = "right",
 	) {
 		const func = (event: MouseEvent) => {
@@ -388,7 +388,7 @@ class Contextmenu<x, y> {
 				if (sel && sel.toString().length > 0) return;
 				dx = event.touches[0].pageX - startX;
 				dy = event.touches[0].pageY - startY;
-				touchDrag(dx, dy);
+				touchDrag(dx, dy, startX);
 			});
 			obj.addEventListener("touchend", (event: TouchEvent) => {
 				const sel = window.getSelection();
@@ -407,7 +407,7 @@ class Contextmenu<x, y> {
 					tapX = touch.pageX;
 					tapY = touch.pageY;
 				}
-				if (!hasSelection) touchEnd(dx, dy);
+				if (!hasSelection) touchEnd(dx, dy, startX);
 			});
 		}
 		return func;

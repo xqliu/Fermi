@@ -159,6 +159,8 @@ class Direct extends Guild {
 		};
 		messages.ontouchmove = (e: TouchEvent) => {
 			if (swiped || !e.touches[0]) return;
+			// Only trigger sidebar from left edge (30px)
+			if (touchStartX > 30) return;
 			const dx = e.touches[0].clientX - touchStartX;
 			const dy = e.touches[0].clientY - touchStartY;
 			if (dx > 50 && Math.abs(dy) < 40) {
