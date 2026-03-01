@@ -391,8 +391,6 @@ export {mobile, iOS, navPushState};
  */
 export function safeReload(): void {
 	window.location.reload();
-	setTimeout(() => { window.location.href = window.location.href; }, 1000);
-	setTimeout(() => { window.location.href = "/reset"; }, 3000);
 }
 export function safeNavigate(url: string): void {
 	window.location.href = url;
