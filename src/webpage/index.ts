@@ -49,9 +49,17 @@ let _suspendDetectedCallback: (() => void) | null = null;
 // When a new SW activates and finishes re-caching, it sends "newVersion"
 // Reload to pick up all new files
 if ("serviceWorker" in navigator) {
-	navigator.serviceWorker.addEventListener("message", (event) => {
+	navigator.serviceWorker.addEventListener("message", async (event) => {
 		if (event.data?.code === "newVersion" && event.data.version !== FERMI_VERSION) {
-			console.log(`[update] New version ${event.data.version}, current ${FERMI_VERSION}, reloading`);
+			console.log(`[update] New version ${event.data.version}, current ${FERMI_VERSION}, clearing cache and reloading`);
+			try {
+				const regs = await navigator.serviceWorker.getRegistrations();
+				for (const r of regs) await r.unregister();
+				const keys = await caches.keys();
+				for (const k of keys) await caches.delete(k);
+			} catch (e) {
+				console.error("[update] cache clear failed:", e);
+			}
 			window.location.reload();
 		}
 	});
