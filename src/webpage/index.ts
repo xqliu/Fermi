@@ -88,10 +88,12 @@ if (window.location.pathname === "/app" || window.location.pathname === "/") {
 			history.replaceState(null, "", "/channels/@me");
 			_forceChannelsInit = true;
 		} else {
-			safeNavigate("/login");
+			history.replaceState(null, "", "/login");
+			makeLogin();
 		}
 	} catch {
-		safeNavigate("/login");
+		history.replaceState(null, "", "/login");
+		makeLogin();
 	}
 }
 export interface CustomHTMLDivElement extends HTMLDivElement {
