@@ -1,5 +1,9 @@
 // @ts-ignore — __BUILD_VERSION__ replaced at build time
 export const FERMI_VERSION: string = "__BUILD_VERSION__";
+// @ts-ignore — signal to inline debug that module loaded
+window.__moduleLoaded = true;
+// @ts-ignore
+if (window.__loadingDebug) window.__loadingDebug("index.js 已加载, v=" + FERMI_VERSION);
 
 // Startup version check: detect stale cache (especially iOS Safari PWA where
 // SW updates and fetch cache-busting are unreliable).
@@ -82,8 +86,9 @@ if (window.location.pathname.startsWith("/channels")) {
 	const _loaddesc = document.getElementById("load-desc") as HTMLSpanElement;
 	const _debugEl = document.getElementById("loading-debug") as HTMLElement | null;
 	const _debugLog = (msg: string) => {
-		const t = new Date().toLocaleTimeString();
-		if (_debugEl) _debugEl.textContent = `[${t}] ${msg}`;
+		// @ts-ignore
+		if (window.__loadingDebug) window.__loadingDebug(msg);
+		else if (_debugEl) _debugEl.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
 		console.log(`[startup] ${msg}`);
 	};
 	// Global loading timeout — if stuck for 15s, make debug info prominent
@@ -260,13 +265,16 @@ if (window.location.pathname.startsWith("/channels")) {
 				const scroller = scrollWrap.querySelector(".scroller") as HTMLDivElement | null;
 				if (!scroller || scroller === currentScroller) return;
 				currentScroller = scroller;
-				// Hide on channel switch — only show after user scrolls up
+				// Hide on channel switch — only show after scroll settles
 				jumpBtn.hidden = true;
-				let userScrolled = false;
+				let scrollTimer: ReturnType<typeof setTimeout> | null = null;
 				scroller.addEventListener("scroll", () => {
-					userScrolled = true;
-					const distFromBottom = scroller.scrollHeight - scroller.scrollTop - scroller.clientHeight;
-					jumpBtn.hidden = distFromBottom < 300;
+					// Debounce: wait 200ms after last scroll event to check position
+					if (scrollTimer) clearTimeout(scrollTimer);
+					scrollTimer = setTimeout(() => {
+						const distFromBottom = scroller.scrollHeight - scroller.scrollTop - scroller.clientHeight;
+						jumpBtn.hidden = distFromBottom < 300;
+					}, 200);
 				});
 			};
 			// Observe for scroller appearing (channel switch replaces .scroller)
