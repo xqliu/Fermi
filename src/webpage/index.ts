@@ -100,11 +100,13 @@ export interface CustomHTMLDivElement extends HTMLDivElement {
 	markdown: MarkDown;
 }
 if (_forceChannelsInit || window.location.pathname.startsWith("/channels")) {
-	// Push a guard entry so swipe-back can never leave the app
-	// (catches any leftover login/app entries in history)
-	if (!history.state) {
+	// Guard the history stack so swipe-back can never leave the app.
+	// replaceState covers current entry; pushState adds a buffer so the
+	// first back-swipe hits a guard (popstate handler then re-pushes).
+	if (!history.state || !history.state.guard) {
 		history.replaceState({guard: true}, "", "/channels/@me");
 	}
+	history.pushState({guard: true}, "", "/channels/@me");
 
 	let templateID = new URLSearchParams(window.location.search).get("templateID");
 	const _loaddesc = document.getElementById("load-desc") as HTMLSpanElement;
@@ -345,7 +347,7 @@ if (_forceChannelsInit || window.location.pathname.startsWith("/channels")) {
 				const toggle = document.getElementById("maintoggle") as HTMLInputElement;
 				if (toggle && !toggle.checked) toggle.checked = true;
 			}
-			history.pushState(null, "", window.location.href);
+			history.pushState({guard: true}, "", window.location.pathname);
 		}
 	});
 	let nonceMap = new Map<string, string>();
