@@ -452,6 +452,30 @@ if (window.location.pathname.startsWith("/channels")) {
 			toggle.checked = true;
 		};
 
+		// Edge swipe on channelWrapper (fallback for empty channels with no message divs)
+		{
+			let swStartX = 0;
+			let swStartY = 0;
+			let swSwiped = false;
+			channelWrapper.addEventListener("touchstart", (e: TouchEvent) => {
+				if (!e.touches[0]) return;
+				swStartX = e.touches[0].clientX;
+				swStartY = e.touches[0].clientY;
+				swSwiped = false;
+			}, {passive: true});
+			channelWrapper.addEventListener("touchmove", (e: TouchEvent) => {
+				if (swSwiped || !e.touches[0]) return;
+				if (swStartX > 30) return; // edge only
+				const dx = e.touches[0].clientX - swStartX;
+				const dy = e.touches[0].clientY - swStartY;
+				if (dx > 50 && Math.abs(dy) < 40) {
+					const toggle = document.getElementById("maintoggle") as HTMLInputElement;
+					if (toggle) toggle.checked = false;
+					swSwiped = true;
+				}
+			});
+		}
+
 		// When member list is open, swipe-right should behave like tapping header-left ">"
 		// (close member list panel and reveal channel sidebar).
 		const sideContainDiv = document.getElementById("sideContainDiv") as HTMLDivElement | null;
