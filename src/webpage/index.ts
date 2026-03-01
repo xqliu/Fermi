@@ -13,10 +13,10 @@ if (window.__loadingDebug) window.__loadingDebug("index.js 已加载, v=" + FERM
 	let lastFrame = Date.now();
 	const checkSuspend = () => {
 		const now = Date.now();
-		if (now - lastFrame > 5000) {
-			// Gap > 5s = app was suspended. Reload to get fresh state.
+		if (now - lastFrame > 30000) {
+			// Gap > 30s = app was suspended long enough that WS is likely dead.
 			console.log(`[suspend] detected ${(now - lastFrame) / 1000}s gap, reloading`);
-			window.location.href = "/reset";
+			window.location.reload();
 			return;
 		}
 		lastFrame = now;
