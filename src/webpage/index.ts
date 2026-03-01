@@ -101,9 +101,13 @@ if (_forceChannelsInit || window.location.pathname.startsWith("/channels")) {
 	// Push a guard entry so swipe-back can never leave the app
 	// (catches any leftover login/app entries in history)
 	if (!history.state || !history.state.guard) {
+		// iOS PWA: native edge-swipe triggers browser back. We can't disable it,
+		// but we can ensure the history stack is deep enough that "back" never
+		// leaves the app. Push multiple guard entries as a buffer.
 		history.replaceState({guard: true}, "", "/channels/@me");
-		// Push a second entry so there's always something to go "back" to
-		history.pushState({guard: true}, "", "/channels/@me");
+		for (let i = 0; i < 5; i++) {
+			history.pushState({guard: true}, "", "/channels/@me");
+		}
 	}
 
 	let templateID = new URLSearchParams(window.location.search).get("templateID");
