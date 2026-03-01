@@ -2943,14 +2943,25 @@ class Localuser {
 					const d = new Dialog("");
 					d.options.addTitle(text);
 					if (update) {
-						const refreshBtn = d.options.addButtonInput("", I18n.localuser.refreshPage(), () => {
+						const refreshBtn = d.options.addButtonInput("", I18n.localuser.refreshPage(), async () => {
 							const b = refreshBtn.buttonHtml;
 							if (b) {
 								b.disabled = true;
 								b.classList.add("loading");
 								b.textContent = "";
 							}
-							safeReload();
+							// Clear SW cache first, then reload — otherwise reload gets stale files from SW
+							try {
+								if ("serviceWorker" in navigator) {
+									const regs = await navigator.serviceWorker.getRegistrations();
+									for (const r of regs) await r.unregister();
+								}
+								const keys = await caches.keys();
+								for (const k of keys) await caches.delete(k);
+							} catch (e) {
+								console.error("[refresh] cache clear failed:", e);
+							}
+							window.location.reload();
 						});
 					}
 					d.show();

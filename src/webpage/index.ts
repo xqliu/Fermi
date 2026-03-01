@@ -36,8 +36,9 @@ let _suspendDetectedCallback: (() => void) | null = null;
 			if (xhr.status === 200) {
 				const serverVersion = xhr.responseText.trim();
 				if (serverVersion && serverVersion !== FERMI_VERSION) {
-					console.log(`[startup] Version mismatch: running ${FERMI_VERSION}, server ${serverVersion}. Reloading...`);
-					window.location.reload();
+					console.log(`[startup] Version mismatch: running ${FERMI_VERSION}, server ${serverVersion}. User can update via settings.`);
+					// Don't auto-reload — SW may still serve old files, causing infinite reload loop.
+					// The update banner in settings or SW newVersion message will handle it.
 				}
 			}
 		};
