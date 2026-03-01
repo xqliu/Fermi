@@ -23,8 +23,8 @@ let _lastActiveTime = Date.now();
 					console.log("[suspend] triggering WS reconnect");
 					_suspendDetectedCallback();
 				} else {
-					console.log("[suspend] no reconnect handler (still loading), reloading");
-					window.location.reload();
+					// Very early in startup (before regSwap) — let existing retry handle it
+					console.log("[suspend] no reconnect handler yet, skipping");
 				}
 			}
 			_lastActiveTime = Date.now();
