@@ -98,11 +98,10 @@ export interface CustomHTMLDivElement extends HTMLDivElement {
 	markdown: MarkDown;
 }
 if (_forceChannelsInit || window.location.pathname.startsWith("/channels")) {
-	// Push guard entries so swipe-back can never leave the app
-	// Need deep stack: iOS native back gesture can fire multiple popstates rapidly
-	history.replaceState({guard: true}, "", "/channels/@me");
-	for (let i = 0; i < 5; i++) {
-		history.pushState({guard: true}, "", "/channels/@me");
+	// Push a guard entry so swipe-back can never leave the app
+	// (catches any leftover login/app entries in history)
+	if (!history.state) {
+		history.replaceState({guard: true}, "", "/channels/@me");
 	}
 
 	let templateID = new URLSearchParams(window.location.search).get("templateID");
@@ -344,7 +343,7 @@ if (_forceChannelsInit || window.location.pathname.startsWith("/channels")) {
 				const toggle = document.getElementById("maintoggle") as HTMLInputElement;
 				if (toggle && !toggle.checked) toggle.checked = true;
 			}
-			history.pushState({guard: true}, "", window.location.pathname);
+			history.pushState(null, "", window.location.href);
 		}
 	});
 	let nonceMap = new Map<string, string>();
