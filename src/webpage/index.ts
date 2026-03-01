@@ -99,8 +99,9 @@ export interface CustomHTMLDivElement extends HTMLDivElement {
 }
 if (_forceChannelsInit || window.location.pathname.startsWith("/channels")) {
 	// Push guard entries so swipe-back can never leave the app
-	if (!history.state || !history.state.guard) {
-		history.replaceState({guard: true}, "", "/channels/@me");
+	// Need deep stack: iOS native back gesture can fire multiple popstates rapidly
+	history.replaceState({guard: true}, "", "/channels/@me");
+	for (let i = 0; i < 5; i++) {
 		history.pushState({guard: true}, "", "/channels/@me");
 	}
 
