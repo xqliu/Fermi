@@ -14,8 +14,15 @@ let _suspendDetectedCallback: (() => void) | null = null;
 	const checkSuspend = () => {
 		const now = Date.now();
 		if (now - lastFrame > 30000) {
-			console.log(`[suspend] detected ${(now - lastFrame) / 1000}s gap, reconnecting`);
-			if (_suspendDetectedCallback) _suspendDetectedCallback();
+			console.log(`[suspend] detected ${(now - lastFrame) / 1000}s gap`);
+			if (_suspendDetectedCallback) {
+				console.log("[suspend] triggering WS reconnect");
+				_suspendDetectedCallback();
+			} else {
+				// Still in loading phase (no thisUser yet) — reload to restart
+				console.log("[suspend] no reconnect handler (still loading), reloading");
+				window.location.reload();
+			}
 		}
 		lastFrame = now;
 		requestAnimationFrame(checkSuspend);
