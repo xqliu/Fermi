@@ -60,16 +60,36 @@ import "./404.js";
 
 if (window.location.pathname === "/app" || window.location.pathname === "/") {
 	// Check if user is logged in before redirecting
-	// Use replace() so /app and /login don't stay in history (prevents swipe-back to them)
+	const _redir = (url: string) => {
+		// @ts-ignore
+		if (window.__loadingDebug) window.__loadingDebug("redirect → " + url);
+		// iOS PWA: window.location.replace() can silently fail.
+		// Try replace first, then fallback to href assignment after 500ms.
+		window.location.replace(url);
+		setTimeout(() => {
+			if (window.location.pathname === "/app" || window.location.pathname === "/") {
+				// @ts-ignore
+				if (window.__loadingDebug) window.__loadingDebug("replace failed, using href");
+				window.location.href = url;
+			}
+		}, 500);
+		setTimeout(() => {
+			if (window.location.pathname === "/app" || window.location.pathname === "/") {
+				// @ts-ignore
+				if (window.__loadingDebug) window.__loadingDebug("href failed, using assign");
+				window.location.assign(url);
+			}
+		}, 1500);
+	};
 	try {
 		const info = JSON.parse(localStorage.getItem("userinfos") || "{}");
 		if (info.currentuser && info.users && Object.keys(info.users).length > 0) {
-			window.location.replace("/channels/@me");
+			_redir("/channels/@me");
 		} else {
-			window.location.replace("/login");
+			_redir("/login");
 		}
 	} catch {
-		window.location.replace("/login");
+		_redir("/login");
 	}
 }
 export interface CustomHTMLDivElement extends HTMLDivElement {
