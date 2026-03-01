@@ -38,8 +38,8 @@ if (window.__loadingDebug) window.__loadingDebug("index.js 已加载, v=" + FERM
 			if (xhr.status === 200) {
 				const serverVersion = xhr.responseText.trim();
 				if (serverVersion && serverVersion !== FERMI_VERSION) {
-					console.log(`[startup] Version mismatch: running ${FERMI_VERSION}, server ${serverVersion}. Redirecting to /reset`);
-					window.location.href = "/reset";
+					console.log(`[startup] Version mismatch: running ${FERMI_VERSION}, server ${serverVersion}. Reloading...`);
+					window.location.reload();
 				}
 			}
 		};
@@ -53,7 +53,7 @@ if ("serviceWorker" in navigator) {
 	navigator.serviceWorker.addEventListener("message", (event) => {
 		if (event.data?.code === "newVersion" && event.data.version !== FERMI_VERSION) {
 			console.log(`[update] New version ${event.data.version}, current ${FERMI_VERSION}, reloading`);
-			window.location.href = "/reset";
+			window.location.reload();
 		}
 	});
 }
