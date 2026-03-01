@@ -2731,12 +2731,6 @@ class Channel extends SnowFlake {
 			return;
 		}
 
-		const prom = this.infinite.delete();
-		if (getMessages) {
-			const loading = document.getElementById("loadingdiv") as HTMLDivElement;
-			Channel.regenLoadingMessages();
-			loading.classList.add("loading");
-		}
 		this.rendertyping();
 
 		try {
@@ -2755,11 +2749,14 @@ class Channel extends SnowFlake {
 		if (!mobile) {
 			(document.getElementById("typebox") as HTMLDivElement).focus();
 		}
+		// Fetch messages BEFORE clearing old ones — reduces blank flash
 		if (getMessages) await this.putmessages();
-		await prom;
 		if (id !== Channel.genid) {
 			return;
 		}
+		// Now clear old messages and build new ones in quick succession
+		const prom = this.infinite.delete();
+		await prom;
 		this.makereplybox();
 
 		if (getMessages) await this.buildmessages(aroundMessage);
