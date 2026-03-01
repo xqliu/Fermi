@@ -4,7 +4,7 @@ import {QuickSwitcher} from "./quickswitch.js";
 import {Direct, Group} from "./direct.js";
 import {User} from "./user.js";
 import {createImg, getapiurls, getBulkUsers, installPGet, SW} from "./utils/utils.js";
-import {getBulkInfo, setTheme, Specialuser, safeReload, safeNavigate} from "./utils/utils.js";
+import {getBulkInfo, setTheme, Specialuser, safeReload as _safeReload, safeNavigate} from "./utils/utils.js";
 import {
 	channeljson,
 	expSessionJson,
@@ -74,7 +74,7 @@ function safeReload() {
 	}
 	times.push(now);
 	sessionStorage.setItem(key, JSON.stringify(times));
-	safeReload();
+	_safeReload();
 }
 
 class Localuser {
