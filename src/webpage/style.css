@@ -5049,17 +5049,24 @@ img.error::after {
 	line-height: 1;
 }
 
-/* Jump to bottom arrow — lives inside quick-bubbles, matches bubble style */
-.jump-to-bottom-arrow {
-	width: 0;
-	height: 0;
-	border-left: 6px solid transparent;
-	border-right: 6px solid transparent;
-	border-top: 8px solid var(--primary-text, #dcddde);
-	opacity: 0.5;
-}
+/* Jump to bottom — lives inside quick-bubbles */
 .jump-to-bottom .quick-bubble-icon-wrap {
+	width: 36px;
+	height: 36px;
+	border-radius: 50%;
+	background: var(--secondary-bg, #2f3136);
 	display: flex;
 	align-items: center;
 	justify-content: center;
+	box-shadow: 0 1px 4px rgba(0,0,0,0.3);
+}
+.jump-to-bottom-arrow {
+	width: 0;
+	height: 0;
+	border-left: 7px solid transparent;
+	border-right: 7px solid transparent;
+	border-top: 9px solid var(--primary-text, #dcddde);
+}
+.jump-to-bottom {
+	opacity: 0.7 !important;
 }

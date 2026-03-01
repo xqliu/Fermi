@@ -33,6 +33,7 @@ export async function makeLogin(
 		position: fixed; top: 0; left: 0; width: 100%; height: 100%;
 		background: var(--secondary-bg, #2f3136);
 		z-index: 200; display: flex; align-items: center; justify-content: center;
+		touch-action: manipulation;
 	`;
 
 	const box = document.createElement("div");
@@ -54,6 +55,8 @@ export async function makeLogin(
 		border-radius: 4px; background: var(--secondary-bg, #2f3136);
 		color: var(--primary-text-color, #fff); font-size: 16px;
 		box-sizing: border-box; -webkit-appearance: none;
+		user-select: text; -webkit-user-select: text;
+		touch-action: manipulation;
 	`;
 
 	const pwInput = document.createElement("input");
@@ -132,8 +135,11 @@ export async function makeLogin(
 	overlay.append(box);
 	document.body.append(overlay);
 
-	// Focus email input
-	requestAnimationFrame(() => emailInput.focus());
+	// Focus email input — delay for iOS PWA which needs DOM to settle
+	setTimeout(() => {
+		emailInput.focus();
+		emailInput.click();
+	}, 300);
 }
 
 await I18n.done;
