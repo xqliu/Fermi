@@ -302,7 +302,7 @@ self.addEventListener("fetch", async (e) => {
 		return;
 	}
 	const pathname = new URL(req.url).pathname;
-	if (pathname.startsWith("/api/") || pathname === "/getupdates" || pathname === "/reset") {
+	if (pathname.startsWith("/api/") || pathname === "/getupdates" || pathname === "/version.json" || pathname === "/reset") {
 		return;
 	}
 	try {
