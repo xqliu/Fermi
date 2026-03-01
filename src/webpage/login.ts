@@ -1,4 +1,4 @@
-import {adduser, Specialuser} from "./utils/utils.js";
+import {adduser, Specialuser, safeNavigate, safeReload} from "./utils/utils.js";
 import {I18n} from "./i18n.js";
 
 const API = "https://chat.llbrother.org/api";
@@ -107,9 +107,9 @@ export async function makeLogin(
 				}
 				const redir = new URLSearchParams(window.location.search).get("goback");
 				if (redir && (!URL.canParse(redir) || new URL(redir).host === window.location.host)) {
-					window.location.replace(redir);
+					safeNavigate(redir);
 				} else {
-					window.location.replace("/channels/@me");
+					safeNavigate("/channels/@me");
 				}
 			} else {
 				const msg = json.errors?.[0]?._errors?.[0]?.message || json.message || "登录失败";
@@ -142,7 +142,7 @@ export async function makeLogin(
 	const now = new Date();
 	const timeStr = `${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}:${now.getSeconds().toString().padStart(2,'0')}`;
 	debugBar.textContent = `login.js loaded ${timeStr} | inputs: ready | tap here to reload`;
-	debugBar.onclick = () => window.location.reload();
+	debugBar.onclick = () => safeReload();
 
 	// Track input focus state
 	const updateDebug = () => {

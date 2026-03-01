@@ -4,7 +4,7 @@ import {QuickSwitcher} from "./quickswitch.js";
 import {Direct, Group} from "./direct.js";
 import {User} from "./user.js";
 import {createImg, getapiurls, getBulkUsers, installPGet, SW} from "./utils/utils.js";
-import {getBulkInfo, setTheme, Specialuser} from "./utils/utils.js";
+import {getBulkInfo, setTheme, Specialuser, safeReload, safeNavigate} from "./utils/utils.js";
 import {
 	channeljson,
 	expSessionJson,
@@ -74,7 +74,7 @@ function safeReload() {
 	}
 	times.push(now);
 	sessionStorage.setItem(key, JSON.stringify(times));
-	window.location.reload();
+	safeReload();
 }
 
 class Localuser {
@@ -134,7 +134,7 @@ class Localuser {
 			// iOS PWA: if frozen for >2 minutes, full reload is most reliable
 			if (staleness > 120000) {
 				console.warn(`[resume] frozen for ${Math.round(staleness/1000)}s, reloading`);
-				window.location.reload();
+				safeReload();
 				return;
 			}
 			// iOS lock-screen resume: timers/events can be frozen; proactively recover
@@ -2967,7 +2967,7 @@ class Localuser {
 								b.classList.add("loading");
 								b.textContent = "";
 							}
-							window.location.reload();
+							safeReload();
 						});
 					}
 					d.show();
@@ -3369,7 +3369,7 @@ class Localuser {
 
 				{
 					security.addButtonInput("", I18n.logout.logout(), async () => {
-						if (await this.userinfo.logout()) window.location.href = "/";
+						if (await this.userinfo.logout()) safeNavigate("/");
 					});
 				}
 			};
@@ -3630,7 +3630,7 @@ class Localuser {
 						}
 					} else {
 						this.userinfo.remove();
-						window.location.href = "/";
+						safeNavigate("/");
 					}
 				},
 				{
@@ -3957,7 +3957,7 @@ class Localuser {
 				});
 
 				// @ts-ignore - chromium is smelly for not supporting the `forceGet` option (aka skip cache)
-				window.location.reload(true);
+				safeReload();
 			});
 		}
 		if (this.trace.length && getDeveloperSettings().showTraces) {

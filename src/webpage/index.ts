@@ -16,7 +16,7 @@ if (window.__loadingDebug) window.__loadingDebug("index.js 已加载, v=" + FERM
 		if (now - lastFrame > 5000) {
 			// Gap > 5s = app was suspended. Reload to get fresh state.
 			console.log(`[suspend] detected ${(now - lastFrame) / 1000}s gap, reloading`);
-			window.location.reload();
+			window.location.href = "/reset";
 			return;
 		}
 		lastFrame = now;
@@ -53,14 +53,14 @@ if ("serviceWorker" in navigator) {
 	navigator.serviceWorker.addEventListener("message", (event) => {
 		if (event.data?.code === "newVersion" && event.data.version !== FERMI_VERSION) {
 			console.log(`[update] New version ${event.data.version}, current ${FERMI_VERSION}, reloading`);
-			window.location.reload();
+			window.location.href = "/reset";
 		}
 	});
 }
 
 import {Localuser} from "./localuser.js";
 import {Contextmenu} from "./contextmenu.js";
-import {mobile, Specialuser} from "./utils/utils.js";
+import {mobile, Specialuser, safeReload, safeNavigate} from "./utils/utils.js";
 import {setTheme} from "./utils/utils.js";
 import {MarkDown} from "./markdown.js";
 import {Message} from "./message.js";
@@ -87,10 +87,10 @@ if (window.location.pathname === "/app" || window.location.pathname === "/") {
 			history.replaceState(null, "", "/channels/@me");
 		} else {
 			// Login requires a real page load (different HTML)
-			window.location.replace("/login");
+			safeNavigate("/login");
 		}
 	} catch {
-		window.location.replace("/login");
+		safeNavigate("/login");
 	}
 }
 export interface CustomHTMLDivElement extends HTMLDivElement {
@@ -225,7 +225,7 @@ if (window.location.pathname.startsWith("/channels")) {
 					// Mimic kill+reopen: clear session state and do a full reload
 					console.error("[init] 5 retries failed, clearing session and reloading");
 					sessionStorage.clear();
-					window.location.reload();
+					safeReload();
 					return;
 				}
 				const delay = Math.min(3000 * retryCount, 10000);
@@ -711,7 +711,7 @@ if (window.location.pathname.startsWith("/channels")) {
 	if (updateIcon) {
 		new Hover(() => updateIcon.textContent || "").addEvent(updateIcon);
 		updateIcon.onclick = () => {
-			window.location.reload();
+			safeReload();
 		};
 	}
 }

@@ -385,6 +385,25 @@ function navPushState(data: any, unused: string, url: string) {
 }
 export {mobile, iOS, navPushState};
 
+/**
+ * iOS PWA standalone: location.reload()/replace()/href can silently fail.
+ * These helpers retry with escalating strategies.
+ */
+export function safeReload(): void {
+	window.location.reload();
+	setTimeout(() => { window.location.href = window.location.href; }, 1000);
+	setTimeout(() => { window.location.href = "/reset"; }, 3000);
+}
+export function safeNavigate(url: string): void {
+	window.location.href = url;
+	setTimeout(() => { window.location.replace(url); }, 1000);
+	setTimeout(() => { window.location.assign(url); }, 2500);
+	// If navigating to a same-origin page and nothing worked, try reload
+	if (url.startsWith("/")) {
+		setTimeout(() => { window.location.href = "/reset"; }, 5000);
+	}
+}
+
 // Hardcoded instance — skip network fetch entirely
 instances = [{
 	name: "chat.llbrother.org",
@@ -1079,7 +1098,7 @@ export class SW {
 		}
 		// After clearing cache, reload so the browser fetches fresh files
 		// and checks for service.js updates
-		setTimeout(() => window.location.reload(), 500);
+		setTimeout(() => safeReload(), 500);
 	}
 }
 SW.start();
