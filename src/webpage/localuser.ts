@@ -3003,18 +3003,25 @@ class Localuser {
 			const match = needsUpdate ? "⚠️ 需更新" : "✅";
 			update.addText(`运行: ${localVer} | 最新: ${serverVer} ${match}`);
 			if (needsUpdate) {
-				const applyBtn = update.addButtonInput("", "刷新以应用更新 🔄", () => {
+				const applyBtn = update.addButtonInput("", "刷新以应用更新 🔄", async () => {
 					const b = applyBtn.buttonHtml;
-					if (b) { b.disabled = true; b.classList.add("loading"); b.textContent = ""; }
-					// iOS PWA: reload() can silently fail. Use multiple strategies.
-					window.location.reload();
-					setTimeout(() => { window.location.href = window.location.href; }, 1000);
-					setTimeout(() => { window.location.replace(window.location.pathname); }, 2500);
-					// Last resort: redirect to /reset which clears SW cache
-					setTimeout(() => {
-						if (b) b.textContent = "重定向中...";
-						window.location.href = "/reset";
-					}, 5000);
+					if (b) { b.disabled = true; b.textContent = "清理缓存中..."; }
+					try {
+						// 1. Unregister service workers so they don't serve stale cache
+						if ("serviceWorker" in navigator) {
+							const regs = await navigator.serviceWorker.getRegistrations();
+							for (const r of regs) await r.unregister();
+						}
+						// 2. Delete all caches
+						const keys = await caches.keys();
+						for (const k of keys) await caches.delete(k);
+						// 3. Navigate with cache-bust (keeps localStorage/login intact)
+						if (b) b.textContent = "重新加载...";
+						window.location.href = "/?v=" + Date.now();
+					} catch (e) {
+						if (b) b.textContent = "失败，跳转修复页...";
+						setTimeout(() => { window.location.href = "/reset"; }, 1000);
+					}
 				});
 			}
 
