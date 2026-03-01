@@ -489,23 +489,22 @@ if (window.location.pathname.startsWith("/channels")) {
 		{
 			let swStartX = 0;
 			let swStartY = 0;
-			let swSwiped = false;
+			let swEdge = false;
 			channelWrapper.addEventListener("touchstart", (e: TouchEvent) => {
 				if (!e.touches[0]) return;
 				swStartX = e.touches[0].clientX;
 				swStartY = e.touches[0].clientY;
-				swSwiped = false;
+				swEdge = swStartX <= 30;
 			}, {passive: true});
-			channelWrapper.addEventListener("touchmove", (e: TouchEvent) => {
-				if (swSwiped || !e.touches[0]) return;
-				if (swStartX > 30) return; // edge only
-				const dx = e.touches[0].clientX - swStartX;
-				const dy = e.touches[0].clientY - swStartY;
+			channelWrapper.addEventListener("touchend", (e: TouchEvent) => {
+				if (!swEdge || !e.changedTouches[0]) return;
+				const dx = e.changedTouches[0].clientX - swStartX;
+				const dy = e.changedTouches[0].clientY - swStartY;
 				if (dx > 50 && Math.abs(dy) < 40) {
 					const toggle = document.getElementById("maintoggle") as HTMLInputElement;
 					if (toggle) toggle.checked = false;
-					swSwiped = true;
 				}
+				swEdge = false;
 			});
 		}
 
@@ -520,10 +519,10 @@ if (window.location.pathname.startsWith("/channels")) {
 				startX = e.touches[0].clientX;
 				startY = e.touches[0].clientY;
 			};
-			sideContainDiv.ontouchmove = (e: TouchEvent) => {
-				if (!e.touches[0]) return;
-				const dx = e.touches[0].clientX - startX;
-				const dy = e.touches[0].clientY - startY;
+			sideContainDiv.ontouchend = (e: TouchEvent) => {
+				if (!e.changedTouches[0]) return;
+				const dx = e.changedTouches[0].clientX - startX;
+				const dy = e.changedTouches[0].clientY - startY;
 				if (dx > 50 && Math.abs(dy) < 40) {
 					// Right swipe on member list should go back to message list only.
 					memberListToggle.checked = false;

@@ -157,20 +157,16 @@ class Direct extends Guild {
 			touchStartY = e.touches[0].clientY;
 			swiped = false;
 		};
-		messages.ontouchmove = (e: TouchEvent) => {
-			if (swiped || !e.touches[0]) return;
-			// Only trigger sidebar from left edge (30px)
+		messages.ontouchend = (e: TouchEvent) => {
+			if (!e.changedTouches[0]) return;
+			// Only trigger sidebar from left edge (30px), judge at release
 			if (touchStartX > 30) return;
-			const dx = e.touches[0].clientX - touchStartX;
-			const dy = e.touches[0].clientY - touchStartY;
+			const dx = e.changedTouches[0].clientX - touchStartX;
+			const dy = e.changedTouches[0].clientY - touchStartY;
 			if (dx > 50 && Math.abs(dy) < 40) {
 				const toggle = document.getElementById("maintoggle") as HTMLInputElement | null;
 				if (toggle) toggle.checked = false;
-				swiped = true;
 			}
-		};
-		messages.ontouchend = () => {
-			swiped = false;
 		};
 
 		messages.append(container);
