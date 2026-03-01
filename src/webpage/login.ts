@@ -131,9 +131,33 @@ export async function makeLogin(
 	emailInput.onkeydown = onEnter;
 	pwInput.onkeydown = onEnter;
 
+	// Debug bar — shows JS load status, tap to reload
+	const debugBar = document.createElement("div");
+	debugBar.style.cssText = `
+		position: fixed; bottom: 0; left: 0; right: 0;
+		padding: 4px 8px; font-size: 10px; color: #666;
+		background: rgba(0,0,0,0.3); text-align: center;
+		z-index: 999; font-family: monospace;
+	`;
+	const now = new Date();
+	const timeStr = `${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}:${now.getSeconds().toString().padStart(2,'0')}`;
+	debugBar.textContent = `login.js loaded ${timeStr} | inputs: ready | tap here to reload`;
+	debugBar.onclick = () => window.location.reload();
+
+	// Track input focus state
+	const updateDebug = () => {
+		const active = document.activeElement?.tagName || 'none';
+		debugBar.textContent = `login ${timeStr} | focus: ${active} | sw: ${navigator.serviceWorker?.controller ? 'active' : 'none'} | tap to reload`;
+	};
+	emailInput.addEventListener("focus", updateDebug);
+	emailInput.addEventListener("blur", updateDebug);
+	pwInput.addEventListener("focus", updateDebug);
+	pwInput.addEventListener("blur", updateDebug);
+
 	box.append(title, emailInput, pwInput, errorDiv, btn);
 	overlay.append(box);
 	document.body.append(overlay);
+	document.body.append(debugBar);
 
 	// iOS PWA: inputs can become unresponsive if focus is stolen or SW reloads the page.
 	// Ensure tapping always activates the input.
