@@ -5,19 +5,17 @@ window.__moduleLoaded = true;
 // @ts-ignore
 if (window.__loadingDebug) window.__loadingDebug("index.js 已加载, v=" + FERMI_VERSION);
 
-// iOS PWA: detect resume from suspension and reload.
-// When iOS suspends a PWA, JS freezes. On resume, network (WS/fetch) is dead
-// but JS continues from where it froze — causing infinite hangs.
-// Detect by checking if time jumped significantly between animation frames.
+// iOS PWA: detect resume from suspension.
+// When iOS suspends a PWA, JS freezes. On resume, WS is dead but JS continues.
+// Detect via requestAnimationFrame time gap and trigger WS reconnect (not reload).
+let _suspendDetectedCallback: (() => void) | null = null;
 {
 	let lastFrame = Date.now();
 	const checkSuspend = () => {
 		const now = Date.now();
 		if (now - lastFrame > 30000) {
-			// Gap > 30s = app was suspended long enough that WS is likely dead.
-			console.log(`[suspend] detected ${(now - lastFrame) / 1000}s gap, reloading`);
-			window.location.reload();
-			return;
+			console.log(`[suspend] detected ${(now - lastFrame) / 1000}s gap, reconnecting`);
+			if (_suspendDetectedCallback) _suspendDetectedCallback();
 		}
 		lastFrame = now;
 		requestAnimationFrame(checkSuspend);
@@ -148,6 +146,13 @@ if (_forceChannelsInit || window.location.pathname.startsWith("/channels")) {
 
 	let thisUser: Localuser;
 	function regSwap(l: Localuser) {
+		// On iOS suspend/resume, close dead WS to trigger reconnect with banner
+		_suspendDetectedCallback = () => {
+			if (l.ws) {
+				console.log(`[suspend] closing WS (readyState=${l.ws.readyState}) to trigger reconnect`);
+				l.ws.close(4000, "suspend detected");
+			}
+		};
 		l.onswap = (l) => {
 			thisUser = l;
 			regSwap(l);
