@@ -253,15 +253,27 @@ if (window.location.pathname.startsWith("/channels")) {
 			jumpBtn.appendChild(iconWrap);
 			bubblesContainer.appendChild(jumpBtn);
 
-			const observeScroll = () => {
+			// Track current scroller to avoid duplicate listeners
+			let currentScroller: HTMLDivElement | null = null;
+			const bindScroller = () => {
 				const scroller = scrollWrap.querySelector(".scroller") as HTMLDivElement | null;
-				if (!scroller) return;
+				if (!scroller || scroller === currentScroller) return;
+				currentScroller = scroller;
 				scroller.addEventListener("scroll", () => {
 					const distFromBottom = scroller.scrollHeight - scroller.scrollTop - scroller.clientHeight;
 					jumpBtn.hidden = distFromBottom < 300;
 				});
+				// Check immediately in case already scrolled up
+				const distFromBottom = scroller.scrollHeight - scroller.scrollTop - scroller.clientHeight;
+				jumpBtn.hidden = distFromBottom < 300;
 			};
-			new MutationObserver(observeScroll).observe(scrollWrap, {childList: true, subtree: true});
+			// Observe for scroller appearing (channel switch replaces .scroller)
+			new MutationObserver(bindScroller).observe(scrollWrap, {childList: true, subtree: true});
+			// Also check now in case scroller already exists
+			bindScroller();
+			// Re-check periodically as fallback (scroller can appear without mutation)
+			setInterval(bindScroller, 2000);
+
 			jumpBtn.onclick = () => {
 				thisUser.channelfocus?.goToBottom();
 				jumpBtn.hidden = true;
