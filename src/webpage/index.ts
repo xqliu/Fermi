@@ -5,6 +5,26 @@ window.__moduleLoaded = true;
 // @ts-ignore
 if (window.__loadingDebug) window.__loadingDebug("index.js 已加载, v=" + FERMI_VERSION);
 
+// iOS PWA: detect resume from suspension and reload.
+// When iOS suspends a PWA, JS freezes. On resume, network (WS/fetch) is dead
+// but JS continues from where it froze — causing infinite hangs.
+// Detect by checking if time jumped significantly between animation frames.
+{
+	let lastFrame = Date.now();
+	const checkSuspend = () => {
+		const now = Date.now();
+		if (now - lastFrame > 5000) {
+			// Gap > 5s = app was suspended. Reload to get fresh state.
+			console.log(`[suspend] detected ${(now - lastFrame) / 1000}s gap, reloading`);
+			window.location.reload();
+			return;
+		}
+		lastFrame = now;
+		requestAnimationFrame(checkSuspend);
+	};
+	requestAnimationFrame(checkSuspend);
+}
+
 // Startup version check: detect stale cache (especially iOS Safari PWA where
 // SW updates and fetch cache-busting are unreliable).
 // Uses XMLHttpRequest to bypass Service Worker fetch handler entirely.
