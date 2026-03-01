@@ -3006,7 +3006,15 @@ class Localuser {
 				const applyBtn = update.addButtonInput("", "刷新以应用更新 🔄", () => {
 					const b = applyBtn.buttonHtml;
 					if (b) { b.disabled = true; b.classList.add("loading"); b.textContent = ""; }
+					// iOS PWA: reload() can silently fail. Use multiple strategies.
 					window.location.reload();
+					setTimeout(() => { window.location.href = window.location.href; }, 1000);
+					setTimeout(() => { window.location.replace(window.location.pathname); }, 2500);
+					// Last resort: redirect to /reset which clears SW cache
+					setTimeout(() => {
+						if (b) b.textContent = "重定向中...";
+						window.location.href = "/reset";
+					}, 5000);
 				});
 			}
 
