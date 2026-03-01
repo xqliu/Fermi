@@ -135,11 +135,25 @@ export async function makeLogin(
 	overlay.append(box);
 	document.body.append(overlay);
 
-	// Focus email input — delay for iOS PWA which needs DOM to settle
-	setTimeout(() => {
-		emailInput.focus();
-		emailInput.click();
-	}, 300);
+	// iOS PWA: inputs can become unresponsive if focus is stolen or SW reloads the page.
+	// Ensure tapping always activates the input.
+	const ensureFocusable = (input: HTMLInputElement) => {
+		input.addEventListener("touchstart", () => {
+			// Re-enable in case something disabled it
+			input.readOnly = false;
+			input.disabled = false;
+		}, {passive: true});
+		input.addEventListener("touchend", (e) => {
+			// Force focus on touch end — iOS sometimes ignores the default behavior
+			e.preventDefault();
+			input.focus();
+		});
+	};
+	ensureFocusable(emailInput);
+	ensureFocusable(pwInput);
+
+	// Delay initial focus for iOS PWA which needs DOM to settle
+	setTimeout(() => emailInput.focus(), 300);
 }
 
 await I18n.done;
