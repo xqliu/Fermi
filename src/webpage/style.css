@@ -1672,6 +1672,7 @@ span.instanceStatus {
 }
 #loading.doneloading {
 	transform: translate(0%, -100%);
+	pointer-events: none;
 }
 #reconnect-banner {
 	display: none;
