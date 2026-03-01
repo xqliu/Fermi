@@ -5,29 +5,31 @@ window.__moduleLoaded = true;
 // @ts-ignore
 if (window.__loadingDebug) window.__loadingDebug("index.js 已加载, v=" + FERMI_VERSION);
 
-// iOS PWA: detect resume from suspension.
-// When iOS suspends a PWA, JS freezes. On resume, WS is dead but JS continues.
-// Detect via requestAnimationFrame time gap and trigger WS reconnect (not reload).
+// iOS PWA: detect resume from suspension via visibilitychange + time gap.
+// visibilitychange is the most reliable event on iOS for detecting resume.
 let _suspendDetectedCallback: (() => void) | null = null;
+let _lastActiveTime = Date.now();
 {
-	let lastFrame = Date.now();
-	const checkSuspend = () => {
-		const now = Date.now();
-		if (now - lastFrame > 30000) {
-			console.log(`[suspend] detected ${(now - lastFrame) / 1000}s gap`);
-			if (_suspendDetectedCallback) {
-				console.log("[suspend] triggering WS reconnect");
-				_suspendDetectedCallback();
-			} else {
-				// Still in loading phase (no thisUser yet) — reload to restart
-				console.log("[suspend] no reconnect handler (still loading), reloading");
-				window.location.reload();
+	// Track last active time via multiple signals
+	const touch = () => { _lastActiveTime = Date.now(); };
+	setInterval(touch, 5000); // heartbeat while active
+	
+	document.addEventListener("visibilitychange", () => {
+		if (document.visibilityState === "visible") {
+			const gap = Date.now() - _lastActiveTime;
+			if (gap > 10000) {
+				console.log(`[suspend] resumed after ${(gap / 1000).toFixed(0)}s`);
+				if (_suspendDetectedCallback) {
+					console.log("[suspend] triggering WS reconnect");
+					_suspendDetectedCallback();
+				} else {
+					console.log("[suspend] no reconnect handler (still loading), reloading");
+					window.location.reload();
+				}
 			}
+			_lastActiveTime = Date.now();
 		}
-		lastFrame = now;
-		requestAnimationFrame(checkSuspend);
-	};
-	requestAnimationFrame(checkSuspend);
+	});
 }
 
 // Startup version check: detect stale cache (especially iOS Safari PWA where
