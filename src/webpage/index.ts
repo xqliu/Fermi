@@ -480,7 +480,14 @@ if (_forceChannelsInit || window.location.pathname.startsWith("/channels")) {
 	});
 	// iOS/iPadOS: Return key may not fire key="Enter" on keydown/keyup reliably.
 	// Handle both insertParagraph and insertLineBreak from virtual keyboards.
+	// But NOT during paste — pasting multi-line text also fires insertParagraph per line.
+	let _isPasting = false;
+	typebox.addEventListener("paste", () => {
+		_isPasting = true;
+		requestAnimationFrame(() => { _isPasting = false; });
+	});
 	typebox.addEventListener("beforeinput", (event) => {
+		if (_isPasting) return; // let paste insert newlines naturally
 		if (event.inputType === "insertParagraph" || event.inputType === "insertLineBreak") {
 			event.preventDefault();
 			// Force composing off — user confirmed input
