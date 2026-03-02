@@ -1,3 +1,9 @@
+/**
+ * Pinned DM users shown as shortcuts in the server sidebar.
+ * Edit this array to add/remove pinned users.
+ */
+const PINNED_DM_USERS: string[] = ["Lucky"];
+
 import {Guild} from "./guild.js";
 import {Channel} from "./channel.js";
 import {QuickSwitcher} from "./quickswitch.js";
@@ -2335,45 +2341,40 @@ class Localuser {
 			guild.loadGuild();
 			guild.loadChannel();
 		};
-		// Lucky quick-access button
-		const luckyBtn = document.createElement("div");
-		luckyBtn.classList.add("servernoti");
-		luckyBtn.id = "lucky-shortcut";
-		const luckyImg = document.createElement("img");
-		luckyImg.classList.add("pfp", "servericon");
-		// Find Lucky's avatar from DM channels
-		let luckyChannel: any = null;
-		for (const [, ch] of this.channelids) {
-			if (ch.guild?.id === "@me" && ch.name === "Lucky") {
-				luckyChannel = ch;
-				const luckyUser = (ch as any).users?.[0];
-				if (luckyUser) {
-					luckyImg.src = luckyUser.getpfpsrc();
+		// Pinned DM shortcuts (configurable)
+		for (const pinName of PINNED_DM_USERS) {
+			let pinChannel: any = null;
+			let pinUser: any = null;
+			for (const [, ch] of this.channelids) {
+				if (ch.guild?.id === "@me" && ch.name === pinName) {
+					pinChannel = ch;
+					pinUser = (ch as any).users?.[0];
+					break;
 				}
-				break;
 			}
+			const pinBtn = document.createElement("div");
+			pinBtn.classList.add("servernoti");
+			const pinImg = document.createElement("img");
+			pinImg.classList.add("pfp", "servericon");
+			pinImg.src = pinUser ? pinUser.getpfpsrc() : this.info.cdn + "/embed/avatars/0.png";
+			pinBtn.appendChild(pinImg);
+			const pinHover = new Hover(pinName, { side: "right", weak: true });
+			pinHover.addEvent(pinImg);
+			pinImg.onclick = () => {
+				const direct = this.guildids.get("@me") as Direct;
+				if (!direct) return;
+				if (pinChannel) {
+					direct.loadGuild();
+					pinChannel.getHTML();
+				} else {
+					direct.loadGuild();
+					direct.loadChannel();
+				}
+				const toggle = document.getElementById("maintoggle") as HTMLInputElement | null;
+				if (toggle) toggle.checked = true;
+			};
+			serverlist.append(pinBtn);
 		}
-		if (!luckyImg.src) {
-			luckyImg.src = this.info.cdn + "/embed/avatars/0.png";
-		}
-		luckyBtn.appendChild(luckyImg);
-		const luckyHover = new Hover("Lucky", { side: "right", weak: true });
-		luckyHover.addEvent(luckyImg);
-		luckyImg.onclick = () => {
-			const direct = this.guildids.get("@me") as Direct;
-			if (!direct) return;
-			if (luckyChannel) {
-				direct.loadGuild();
-				luckyChannel.getHTML();
-			} else {
-				direct.loadGuild();
-				direct.loadChannel();
-			}
-			// Close sidebar on mobile
-			const toggle = document.getElementById("maintoggle") as HTMLInputElement | null;
-			if (toggle) toggle.checked = true;
-		};
-		serverlist.append(luckyBtn);
 
 		const sentdms = document.createElement("div");
 		sentdms.classList.add("sentdms");
