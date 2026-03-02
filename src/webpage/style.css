@@ -1852,6 +1852,12 @@ span.instanceStatus {
 #sentdms .pfp:hover {
 	border-radius: 30%;
 }
+.lucky-icon {
+	background: #2d2d2d;
+	font-size: 24px;
+	line-height: 48px;
+	text-align: center;
+}
 .home .svgicon {
 	background: var(--icon);
 }

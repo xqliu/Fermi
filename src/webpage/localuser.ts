@@ -2335,6 +2335,34 @@ class Localuser {
 			guild.loadGuild();
 			guild.loadChannel();
 		};
+		// Lucky quick-access button
+		const luckyBtn = document.createElement("div");
+		luckyBtn.classList.add("servernoti");
+		luckyBtn.id = "lucky-shortcut";
+		const luckyIcon = document.createElement("div");
+		luckyIcon.classList.add("servericon", "lucky-icon");
+		luckyIcon.textContent = "🍀";
+		luckyBtn.appendChild(luckyIcon);
+		const luckyHover = new Hover("Lucky", { side: "right", weak: true });
+		luckyHover.addEvent(luckyIcon);
+		luckyIcon.onclick = () => {
+			// Find Lucky's DM channel and navigate to it
+			const direct = this.guildids.get("@me") as Direct;
+			if (!direct) return;
+			// Search DM channels for Lucky (bot user)
+			for (const [, channel] of this.channelids) {
+				if (channel.guild?.id === "@me" && channel.name === "Lucky") {
+					direct.loadGuild();
+					channel.getHTML();
+					return;
+				}
+			}
+			// Fallback: just go to DMs
+			direct.loadGuild();
+			direct.loadChannel();
+		};
+		serverlist.append(luckyBtn);
+
 		const sentdms = document.createElement("div");
 		sentdms.classList.add("sentdms");
 		serverlist.append(sentdms);
