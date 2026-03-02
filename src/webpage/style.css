@@ -1304,13 +1304,65 @@ textarea {
 	opacity: 1;
 }
 #voiceRecordBtn.recording {
-	color: #ed4245;
-	opacity: 1;
+	display: none;
+}
+#voiceRecordBar {
+	display: none;
+	align-items: center;
+	gap: 8px;
+	margin-left: 6px;
+	flex-shrink: 0;
+}
+#voiceRecordBar.active {
+	display: flex;
+}
+#voiceRecordBar .rec-dot {
+	width: 8px;
+	height: 8px;
+	border-radius: 50%;
+	background: #ed4245;
 	animation: recording-pulse 1s ease-in-out infinite;
+}
+#voiceRecordBar .rec-time {
+	font-size: 13px;
+	color: #dcddde;
+	font-variant-numeric: tabular-nums;
+	min-width: 32px;
+}
+#voiceRecordBar .rec-stop {
+	width: 28px;
+	height: 28px;
+	border-radius: 50%;
+	background: #ed4245;
+	border: none;
+	cursor: pointer;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: 0;
+}
+#voiceRecordBar .rec-stop::after {
+	content: "";
+	display: block;
+	width: 10px;
+	height: 10px;
+	border-radius: 2px;
+	background: white;
+}
+#voiceRecordBar .rec-cancel {
+	background: none;
+	border: none;
+	color: #b9bbbe;
+	cursor: pointer;
+	font-size: 13px;
+	padding: 2px 6px;
+}
+#voiceRecordBar .rec-cancel:active {
+	color: #fff;
 }
 @keyframes recording-pulse {
 	0%, 100% { opacity: 1; }
-	50% { opacity: 0.5; }
+	50% { opacity: 0.3; }
 }
 .selectarrow {
 	position: absolute;

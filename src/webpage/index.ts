@@ -734,51 +734,64 @@ if (_forceChannelsInit || window.location.pathname.startsWith("/channels")) {
 		e.stopImmediatePropagation();
 		thisUser.makeStickerBox(stickerTB.getBoundingClientRect());
 	};
-	// Voice recording button
+	// Voice recording
 	const voiceBtn = document.getElementById("voiceRecordBtn") as HTMLElement;
-	if (voiceBtn && VoiceRecorder.supported) {
+	const voiceBar = document.getElementById("voiceRecordBar") as HTMLElement;
+	if (voiceBtn && voiceBar && VoiceRecorder.supported) {
 		let recorder: VoiceRecorder | null = null;
-		const origText = voiceBtn.textContent;
+		const recTime = voiceBar.querySelector(".rec-time") as HTMLElement;
+		const recStop = voiceBar.querySelector(".rec-stop") as HTMLElement;
+		const recCancel = voiceBar.querySelector(".rec-cancel") as HTMLElement;
 
-		voiceBtn.onclick = async () => {
-			if (recorder?.isRecording) {
-				// Stop and send
-				const { file, duration } = recorder.stop();
-				voiceBtn.classList.remove("recording");
-				voiceBtn.textContent = origText;
-				recorder = null;
-				if (duration < 1 || file.size === 0) return; // too short, discard
-
-				// Send via current channel
-				const channel = thisUser.channelfocus;
-				if (channel) {
-					channel.sendMessage("", {
-						attachments: [file],
-						replyingto: null,
-						embeds: [],
-						sticker_ids: [],
-					});
-				}
-			} else {
-				// Start recording
-				try {
-					recorder = new VoiceRecorder();
-					recorder.onTick = (sec) => {
-						const m = Math.floor(sec / 60);
-						const s = sec % 60;
-						voiceBtn.textContent = `${m}:${s.toString().padStart(2, "0")}`;
-					};
-					await recorder.start();
-					voiceBtn.classList.add("recording");
-					voiceBtn.textContent = "0:00";
-				} catch (e) {
-					console.error("[voice] failed to start recording:", e);
-					recorder = null;
-				}
+		const stopAndSend = () => {
+			if (!recorder) return;
+			const { file, duration } = recorder.stop();
+			voiceBtn.classList.remove("recording");
+			voiceBar.classList.remove("active");
+			recorder = null;
+			if (duration < 1 || file.size === 0) return;
+			const channel = thisUser.channelfocus;
+			if (channel) {
+				channel.sendMessage("", {
+					attachments: [file],
+					replyingto: null,
+					embeds: [],
+					sticker_ids: [],
+				});
 			}
 		};
+
+		const cancelRecording = () => {
+			if (!recorder) return;
+			recorder.cancel();
+			voiceBtn.classList.remove("recording");
+			voiceBar.classList.remove("active");
+			recorder = null;
+		};
+
+		voiceBtn.onclick = async () => {
+			if (recorder?.isRecording) return;
+			try {
+				recorder = new VoiceRecorder();
+				recorder.onTick = (sec) => {
+					const m = Math.floor(sec / 60);
+					const s = sec % 60;
+					recTime.textContent = `${m}:${s.toString().padStart(2, "0")}`;
+				};
+				await recorder.start();
+				voiceBtn.classList.add("recording");
+				voiceBar.classList.add("active");
+				recTime.textContent = "0:00";
+			} catch (e) {
+				console.error("[voice] failed to start recording:", e);
+				recorder = null;
+			}
+		};
+
+		recStop.onclick = stopAndSend;
+		recCancel.onclick = cancelRecording;
 	} else if (voiceBtn) {
-		voiceBtn.style.display = "none"; // hide if not supported
+		voiceBtn.style.display = "none";
 	}
 
 	const updateIcon = document.getElementById("updateIcon");
