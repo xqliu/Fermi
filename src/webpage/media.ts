@@ -265,7 +265,7 @@ function makePlayBox(
 			}
 			regenTime();
 			title.textContent = thing.title;
-			if (thing.title && (thing.title.startsWith("voice-") || thing.title.startsWith("recording"))) {
+			if (thing.title && (thing.title.startsWith("voice") || thing.title.startsWith("recording"))) {
 				title.style.display = "none";
 			}
 		});
