@@ -193,9 +193,10 @@ function makePlayBox(
 					clearInterval(int);
 					if (audio) {
 						audio.pause();
-						audio.src = "";
+						audio.currentTime = 0;
 						player.end();
 					}
+					bar.value = "0";
 					button.classList.add("svg-play");
 					button.classList.remove("svg-pause");
 					regenTime();
