@@ -1287,26 +1287,30 @@ textarea {
 	bottom: -5px;
 	border-radius: 1in;
 }
-#stickerTB {
-	width: 0.2in;
-	height: 0.2in;
+#stickerTB, #emojiTB, #gifTB {
+	display: none;
+}
+#voiceRecordBtn {
+	font-size: 20px;
 	cursor: pointer;
 	flex-shrink: 0;
 	margin-left: 6px;
+	user-select: none;
+	-webkit-user-select: none;
+	opacity: 0.6;
+	transition: opacity 0.15s;
 }
-#emojiTB {
-	width: 0.2in;
-	height: 0.2in;
-	cursor: pointer;
-	flex-shrink: 0;
-	margin-left: 6px;
+#voiceRecordBtn:active {
+	opacity: 1;
 }
-#gifTB {
-	width: 0.2in;
-	height: 0.2in;
-	cursor: pointer;
-	flex-shrink: 0;
-	mask-size: 0.2in 0.2in;
+#voiceRecordBtn.recording {
+	color: #ed4245;
+	opacity: 1;
+	animation: recording-pulse 1s ease-in-out infinite;
+}
+@keyframes recording-pulse {
+	0%, 100% { opacity: 1; }
+	50% { opacity: 0.5; }
 }
 .selectarrow {
 	position: absolute;
