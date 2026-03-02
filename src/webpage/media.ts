@@ -253,15 +253,19 @@ function makePlayBox(
 				regenTime(+bar.value * 1000);
 			};
 			async function regenTime(curTime: number = 0) {
-				const len = await med.length;
+				let len = await med.length;
+				if (!len || !isFinite(len) || isNaN(len)) len = 0;
 				bar.disabled = false;
-				bar.max = "" + len / 1000;
-
-				time.textContent = `${timeToString(curTime)}/${timeToString(len)}`;
+				if (len > 0) {
+					bar.max = "" + len / 1000;
+					time.textContent = `${timeToString(curTime)}/${timeToString(len)}`;
+				} else {
+					time.textContent = timeToString(curTime);
+				}
 			}
 			regenTime();
 			title.textContent = thing.title;
-			if (thing.title && thing.title.startsWith("voice-")) {
+			if (thing.title && (thing.title.startsWith("voice-") || thing.title.startsWith("recording"))) {
 				title.style.display = "none";
 			}
 		});
