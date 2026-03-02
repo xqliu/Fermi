@@ -114,10 +114,10 @@ class Localuser {
 	private _onVisibilityChange = () => {
 		if (document.visibilityState === "visible") {
 			const staleness = Date.now() - this._lastWsActivityAt;
-			// iOS PWA: if frozen for >2 minutes, full reload is most reliable
+			// iOS PWA: if frozen for >2 minutes, reconnect WS (not reload — reload shows loading page)
 			if (staleness > 120000) {
-				console.warn(`[resume] frozen for ${Math.round(staleness/1000)}s, reloading`);
-				safeReload();
+				console.warn(`[resume] frozen for ${Math.round(staleness/1000)}s, reconnecting`);
+				this._checkAndReconnect();
 				return;
 			}
 			// iOS lock-screen resume: timers/events can be frozen; proactively recover
