@@ -237,6 +237,9 @@ function makePlayBox(
 			}
 			regenTime();
 			title.textContent = thing.title;
+			if (thing.title && thing.title.startsWith("voice-")) {
+				title.style.display = "none";
+			}
 		});
 	})();
 	return div;
