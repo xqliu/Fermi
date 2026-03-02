@@ -4,6 +4,30 @@ import {Dialog} from "./settings.js";
 import {ProgressiveArray} from "./utils/progessiveLoad.js";
 const menu = new Contextmenu<media, undefined>("media");
 menu.addButton(
+	() => "转文字",
+	async function () {
+		const src = this.src;
+		if (!src) return;
+		try {
+			const resp = await fetch(src);
+			const blob = await resp.blob();
+			const form = new FormData();
+			form.append("file", blob, this.filename || "audio.webm");
+			form.append("model", "whisper-large-v3");
+			form.append("language", "zh");
+			const tResp = await fetch("/api/transcribe", { method: "POST", body: form });
+			const json = await tResp.json();
+			if (json.text) {
+				const di = new Dialog("语音转文字");
+				di.float.options.addText(json.text);
+				di.show();
+			}
+		} catch (e) {
+			console.error("[transcribe]", e);
+		}
+	},
+);
+menu.addButton(
 	() => I18n.media.download(),
 	function () {
 		const a = document.createElement("a");
@@ -43,30 +67,6 @@ menu.addButton(
 			if (txt) {
 				txt.classList.add("timestamp");
 			}
-		}
-	},
-);
-menu.addButton(
-	() => "转文字",
-	async function () {
-		const src = this.src;
-		if (!src) return;
-		try {
-			const resp = await fetch(src);
-			const blob = await resp.blob();
-			const form = new FormData();
-			form.append("file", blob, this.filename || "audio.webm");
-			form.append("model", "whisper-large-v3");
-			form.append("language", "zh");
-			const tResp = await fetch("/api/transcribe", { method: "POST", body: form });
-			const json = await tResp.json();
-			if (json.text) {
-				const di = new Dialog("语音转文字");
-				di.float.options.addText(json.text);
-				di.show();
-			}
-		} catch (e) {
-			console.error("[transcribe]", e);
 		}
 	},
 );
