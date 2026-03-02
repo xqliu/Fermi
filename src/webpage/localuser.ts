@@ -2339,27 +2339,39 @@ class Localuser {
 		const luckyBtn = document.createElement("div");
 		luckyBtn.classList.add("servernoti");
 		luckyBtn.id = "lucky-shortcut";
-		const luckyIcon = document.createElement("div");
-		luckyIcon.classList.add("servericon", "lucky-icon");
-		luckyIcon.textContent = "🍀";
-		luckyBtn.appendChild(luckyIcon);
+		const luckyImg = document.createElement("img");
+		luckyImg.classList.add("pfp", "servericon");
+		// Find Lucky's avatar from DM channels
+		let luckyChannel: any = null;
+		for (const [, ch] of this.channelids) {
+			if (ch.guild?.id === "@me" && ch.name === "Lucky") {
+				luckyChannel = ch;
+				const luckyUser = (ch as any).users?.[0];
+				if (luckyUser) {
+					luckyImg.src = luckyUser.getpfpsrc();
+				}
+				break;
+			}
+		}
+		if (!luckyImg.src) {
+			luckyImg.src = this.info.cdn + "/embed/avatars/0.png";
+		}
+		luckyBtn.appendChild(luckyImg);
 		const luckyHover = new Hover("Lucky", { side: "right", weak: true });
-		luckyHover.addEvent(luckyIcon);
-		luckyIcon.onclick = () => {
-			// Find Lucky's DM channel and navigate to it
+		luckyHover.addEvent(luckyImg);
+		luckyImg.onclick = () => {
 			const direct = this.guildids.get("@me") as Direct;
 			if (!direct) return;
-			// Search DM channels for Lucky (bot user)
-			for (const [, channel] of this.channelids) {
-				if (channel.guild?.id === "@me" && channel.name === "Lucky") {
-					direct.loadGuild();
-					channel.getHTML();
-					return;
-				}
+			if (luckyChannel) {
+				direct.loadGuild();
+				luckyChannel.getHTML();
+			} else {
+				direct.loadGuild();
+				direct.loadChannel();
 			}
-			// Fallback: just go to DMs
-			direct.loadGuild();
-			direct.loadChannel();
+			// Close sidebar on mobile
+			const toggle = document.getElementById("maintoggle") as HTMLInputElement | null;
+			if (toggle) toggle.checked = true;
 		};
 		serverlist.append(luckyBtn);
 
