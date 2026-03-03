@@ -3487,10 +3487,12 @@ class Channel extends SnowFlake {
 		};
 		Promise.all(
 			urls.attachments.map(async ({upload_url, id}) => {
+				const file = files[+id];
 				return await (
 					await fetch(upload_url, {
-						body: files[+id],
+						body: file,
 						method: "PUT",
+						headers: file.type ? {"Content-Type": file.type} : undefined,
 					})
 				).json();
 			}),
