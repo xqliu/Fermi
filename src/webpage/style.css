@@ -4335,7 +4335,7 @@ button.loading::after {
 @media screen and (max-width: 600px) {
 	.searching {
 		position: relative;
-		flex: 0 1 160px;
+		flex: 1 1 auto;
 		min-width: 0;
 		#searchBox {
 			width: 100%;
