@@ -392,13 +392,41 @@ export {mobile, iOS, navPushState};
 export function safeReload(): void {
 	window.location.reload();
 }
+let pendingNavigateTimers: number[] = [];
+function clearPendingNavigateTimers() {
+	for (const timer of pendingNavigateTimers) {
+		window.clearTimeout(timer);
+	}
+	pendingNavigateTimers = [];
+}
 export function safeNavigate(url: string): void {
-	window.location.href = url;
-	setTimeout(() => { window.location.replace(url); }, 1000);
-	setTimeout(() => { window.location.assign(url); }, 2500);
-	// If navigating to a same-origin page and nothing worked, try reload
-	if (url.startsWith("/")) {
-		setTimeout(() => { window.location.href = "/reset"; }, 5000);
+	clearPendingNavigateTimers();
+	const start = new URL(window.location.href);
+	const target = new URL(url, start);
+	const sameLocation = (a: URL, b: URL) =>
+		a.origin === b.origin && a.pathname === b.pathname && a.search === b.search && a.hash === b.hash;
+	const shouldKeepTrying = () => {
+		const current = new URL(window.location.href);
+		return sameLocation(current, start) && !sameLocation(current, target);
+	};
+	window.location.href = target.toString();
+	pendingNavigateTimers.push(
+		window.setTimeout(() => {
+			if (shouldKeepTrying()) window.location.replace(target.toString());
+		}, 1000),
+	);
+	pendingNavigateTimers.push(
+		window.setTimeout(() => {
+			if (shouldKeepTrying()) window.location.assign(target.toString());
+		}, 2500),
+	);
+	// Only fall back to /reset if we are still stuck on the original page.
+	if (target.origin === start.origin) {
+		pendingNavigateTimers.push(
+			window.setTimeout(() => {
+				if (shouldKeepTrying()) window.location.href = "/reset";
+			}, 5000),
+		);
 	}
 }
 

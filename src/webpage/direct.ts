@@ -689,6 +689,13 @@ class Group extends Channel {
 	unreads() {
 		const sentdms = document.getElementById("sentdms") as HTMLDivElement; //Need to change sometime
 		const current = this.all.deref();
+		const pinnedShortcutExists = Array.from(document.querySelectorAll("[data-pinned-dm-name]")).some(
+			(elm) => (elm as HTMLElement).dataset.pinnedDmName === this.name,
+		);
+		if (pinnedShortcutExists) {
+			current?.remove();
+			return;
+		}
 		if (this.mentions) {
 			{
 				const noti = this.noti?.deref();

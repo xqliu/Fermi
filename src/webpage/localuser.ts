@@ -2354,11 +2354,12 @@ class Localuser {
 			}
 			const pinBtn = document.createElement("div");
 			pinBtn.classList.add("servernoti");
+			pinBtn.dataset.pinnedDmName = pinName;
 			const pinImg = document.createElement("img");
 			pinImg.classList.add("pfp", "servericon");
 			pinImg.src = pinUser ? pinUser.getpfpsrc() : this.info.cdn + "/embed/avatars/0.png";
 			pinBtn.appendChild(pinImg);
-			const pinHover = new Hover(pinName, { side: "right", weak: true });
+			const pinHover = new Hover(pinName, {side: "right", weak: true});
 			pinHover.addEvent(pinImg);
 			pinImg.onclick = () => {
 				const direct = this.guildids.get("@me") as Direct;
