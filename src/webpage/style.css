@@ -56,45 +56,61 @@ body {
 	}
 }
 .Mplayer {
-	padding: 6px 12px;
-	border-radius: 18px;
+	padding: 4px 10px 4px 4px;
+	border-radius: 20px;
 	background: var(--secondary-bg);
 	align-items: center;
 	flex-grow: 0;
 	flex-shrink: 0;
-	height: 44px;
+	height: 40px;
 	position: relative;
-	max-width: 360px;
+	max-width: 320px;
+	gap: 6px;
 
 	* {
-		margin: 2px;
+		margin: 0;
 		accent-color: var(--primary-text-soft);
 		flex-shrink: 1;
 	}
 	.flexttb {
 		display: flex;
 		align-items: center;
+		flex: 1;
+		min-width: 0;
+	}
+	.flexltr {
+		align-items: center;
+		gap: 6px;
+		flex: 1;
+	}
+	span {
+		font-size: 12px;
+		color: var(--primary-text-soft);
+		white-space: nowrap;
 	}
 	input[type="range"] {
 		-webkit-appearance: none;
 		appearance: none;
-		height: 4px;
+		height: 3px;
 		border-radius: 2px;
 		background: var(--primary-text-soft);
-		opacity: 0.6;
+		opacity: 0.5;
 		outline: none;
+		flex: 1;
+		min-width: 60px;
+		margin: 0;
 		&::-webkit-slider-thumb {
 			-webkit-appearance: none;
 			appearance: none;
-			width: 12px;
-			height: 12px;
+			width: 10px;
+			height: 10px;
 			border-radius: 50%;
 			background: var(--primary-text);
 			cursor: pointer;
 		}
 		&::-moz-range-thumb {
-			width: 12px;
-			height: 12px;
+			width: 10px;
+			height: 10px;
 			border-radius: 50%;
 			background: var(--primary-text);
 			cursor: pointer;
@@ -841,30 +857,32 @@ textarea {
 	cursor: pointer;
 }
 .svg-mediaSettings {
-	width: 15px;
-	height: 30px;
+	width: 12px;
+	height: 20px;
+	min-width: 12px;
+	background: var(--primary-text-soft);
+	cursor: pointer;
+	display: block;
+	mask-size: contain !important;
+	opacity: 0.7;
+}
+.svg-mediaButton {
+	width: 14px;
+	height: 14px;
+	min-width: 14px;
 	background: var(--primary-text);
 	cursor: pointer;
 	display: block;
 	mask-size: contain !important;
-}
-.svg-mediaButton {
-	width: 28px;
-	height: 28px;
-	min-width: 28px;
-	background: var(--primary-text);
-	cursor: pointer;
-	display: block;
-	mask-size: cover !important;
-	border-radius: 50%;
-	padding: 6px;
-	background-color: var(--primary-text-soft);
-	-webkit-mask-size: 16px 16px;
-	mask-size: 16px 16px;
-	-webkit-mask-repeat: no-repeat;
+	-webkit-mask-size: contain !important;
 	mask-repeat: no-repeat;
-	-webkit-mask-position: center;
+	-webkit-mask-repeat: no-repeat;
 	mask-position: center;
+	-webkit-mask-position: center;
+	/* circle background via box-shadow since mask clips background-color */
+	border-radius: 50%;
+	box-shadow: 0 0 0 9px color-mix(in srgb, var(--primary-text) 15%, transparent);
+	margin: 9px !important;
 }
 .svg-crown {
 	width: 16px;
