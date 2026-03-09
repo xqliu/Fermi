@@ -56,14 +56,15 @@ body {
 	}
 }
 .Mplayer {
-	padding: 4px;
-	border-radius: 3px;
+	padding: 6px 12px;
+	border-radius: 18px;
 	background: var(--secondary-bg);
 	align-items: center;
 	flex-grow: 0;
 	flex-shrink: 0;
-	height: 52px;
+	height: 44px;
 	position: relative;
+	max-width: 360px;
 
 	* {
 		margin: 2px;
@@ -73,6 +74,32 @@ body {
 	.flexttb {
 		display: flex;
 		align-items: center;
+	}
+	input[type="range"] {
+		-webkit-appearance: none;
+		appearance: none;
+		height: 4px;
+		border-radius: 2px;
+		background: var(--primary-text-soft);
+		opacity: 0.6;
+		outline: none;
+		&::-webkit-slider-thumb {
+			-webkit-appearance: none;
+			appearance: none;
+			width: 12px;
+			height: 12px;
+			border-radius: 50%;
+			background: var(--primary-text);
+			cursor: pointer;
+		}
+		&::-moz-range-thumb {
+			width: 12px;
+			height: 12px;
+			border-radius: 50%;
+			background: var(--primary-text);
+			cursor: pointer;
+			border: none;
+		}
 	}
 }
 .bandiv {
@@ -822,12 +849,22 @@ textarea {
 	mask-size: contain !important;
 }
 .svg-mediaButton {
-	width: 30px;
-	height: 30px;
+	width: 28px;
+	height: 28px;
+	min-width: 28px;
 	background: var(--primary-text);
 	cursor: pointer;
 	display: block;
 	mask-size: cover !important;
+	border-radius: 50%;
+	padding: 6px;
+	background-color: var(--primary-text-soft);
+	-webkit-mask-size: 16px 16px;
+	mask-size: 16px 16px;
+	-webkit-mask-repeat: no-repeat;
+	mask-repeat: no-repeat;
+	-webkit-mask-position: center;
+	mask-position: center;
 }
 .svg-crown {
 	width: 16px;
