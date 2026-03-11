@@ -232,12 +232,16 @@ if (_forceChannelsInit || window.location.pathname.startsWith("/channels")) {
 			if (templateID) {
 				thisUser.passTemplateID(templateID);
 			}
-			// Auto-open default channel if landing on /channels/@me with no specific channel
+			// Auto-open default guild/channel if landing on /channels/@me
 			if (window.location.pathname === "/channels/@me") {
-				// Default to 语文 channel in 小朋友 category
-				const DEFAULT_GUILD = "1469395451760402503";
-				const DEFAULT_CHANNEL = "1481098185661965513";
-				thisUser.goToChannel(DEFAULT_CHANNEL, false);
+				try {
+					const defaults = await fetch("/user-defaults.json").then(r => r.json());
+					if (defaults.defaultChannel) {
+						thisUser.goToChannel(defaults.defaultChannel, false);
+					}
+				} catch (e) {
+					console.log("[defaults] no user-defaults.json or parse error, staying on @me");
+				}
 			}
 			thisUser.subscribePush().catch((e: any) => console.warn("[push] subscribe failed:", e));
 		};
