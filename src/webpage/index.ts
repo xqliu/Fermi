@@ -222,6 +222,17 @@ if (_forceChannelsInit || window.location.pathname.startsWith("/channels")) {
 		loaddesc.textContent = "正在连接服务器...";
 		const finishLoading = async () => {
 			loaddesc.textContent = "正在加载频道...";
+			// Redirect to default guild/channel before init() parses the URL
+			if (window.location.pathname === "/channels/@me") {
+				try {
+					const defaults = await fetch("/user-defaults.json").then(r => r.json());
+					if (defaults.defaultGuild && defaults.defaultChannel) {
+						history.replaceState(null, "", `/channels/${defaults.defaultGuild}/${defaults.defaultChannel}`);
+					}
+				} catch (e) {
+					console.log("[defaults] no user-defaults.json, staying on @me");
+				}
+			}
 			thisUser.loaduser();
 			await thisUser.init();
 			const loading = document.getElementById("loading") as HTMLDivElement;
@@ -232,19 +243,10 @@ if (_forceChannelsInit || window.location.pathname.startsWith("/channels")) {
 			if (templateID) {
 				thisUser.passTemplateID(templateID);
 			}
-			// Auto-open default guild/channel if landing on /channels/@me
-			if (window.location.pathname === "/channels/@me") {
-				try {
-					const defaults = await fetch("/user-defaults.json").then(r => r.json());
-					if (defaults.defaultChannel) {
-						await thisUser.goToChannel(defaults.defaultChannel, false);
-						// Close sidebar on mobile after navigating
-						const toggle = document.getElementById("maintoggle") as HTMLInputElement | null;
-						if (toggle) toggle.checked = true;
-					}
-				} catch (e) {
-					console.log("[defaults] no user-defaults.json or parse error, staying on @me");
-				}
+			// Close sidebar on mobile after loading
+			{
+				const toggle = document.getElementById("maintoggle") as HTMLInputElement | null;
+				if (toggle) toggle.checked = true;
 			}
 			thisUser.subscribePush().catch((e: any) => console.warn("[push] subscribe failed:", e));
 		};
