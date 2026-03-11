@@ -232,12 +232,12 @@ if (_forceChannelsInit || window.location.pathname.startsWith("/channels")) {
 			if (templateID) {
 				thisUser.passTemplateID(templateID);
 			}
-			// Auto-open first pinned DM if landing on /channels/@me with no specific channel
+			// Auto-open default channel if landing on /channels/@me with no specific channel
 			if (window.location.pathname === "/channels/@me") {
-				const pinnedDmImg = document.querySelector(".pinned-dm-icon img") as HTMLElement | null;
-				if (pinnedDmImg) {
-					pinnedDmImg.click();
-				}
+				// Default to 语文 channel in 小朋友 category
+				const DEFAULT_GUILD = "1469395451760402503";
+				const DEFAULT_CHANNEL = "1481098185661965513";
+				thisUser.goToChannel(DEFAULT_CHANNEL, false);
 			}
 			thisUser.subscribePush().catch((e: any) => console.warn("[push] subscribe failed:", e));
 		};
