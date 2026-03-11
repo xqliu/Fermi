@@ -237,7 +237,10 @@ if (_forceChannelsInit || window.location.pathname.startsWith("/channels")) {
 				try {
 					const defaults = await fetch("/user-defaults.json").then(r => r.json());
 					if (defaults.defaultChannel) {
-						thisUser.goToChannel(defaults.defaultChannel, false);
+						await thisUser.goToChannel(defaults.defaultChannel, false);
+						// Close sidebar on mobile after navigating
+						const toggle = document.getElementById("maintoggle") as HTMLInputElement | null;
+						if (toggle) toggle.checked = true;
 					}
 				} catch (e) {
 					console.log("[defaults] no user-defaults.json or parse error, staying on @me");
