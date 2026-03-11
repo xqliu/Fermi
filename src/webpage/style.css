@@ -968,13 +968,6 @@ textarea {
 	mask-size: contain !important;
 	background: var(--primary-text);
 }
-.channel-emoji-icon {
-	font-size: 16px;
-	line-height: 1;
-	width: 20px;
-	text-align: center;
-	flex-shrink: 0;
-}
 .svg-stopstream {
 	mask: url(./icons/stopstream.svg);
 	mask-size: contain !important;

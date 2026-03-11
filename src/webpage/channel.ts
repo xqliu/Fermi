@@ -42,10 +42,6 @@ class Channel extends SnowFlake {
 	owner!: Guild;
 	headers!: Localuser["headers"];
 	name!: string;
-	/** Channel name without leading emoji (for display when emoji is used as icon) */
-	get displayName(): string {
-		return this.name.replace(/^(\p{Emoji_Presentation}|\p{Extended_Pictographic})\uFE0F?/u, "").trim();
-	}
 	parent_id?: string;
 	parent: Channel | undefined;
 	children!: Channel[];
@@ -1007,12 +1003,7 @@ class Channel extends SnowFlake {
 		}
 		icon.classList = "";
 		if (this.type === 0) {
-			// If channel name starts with emoji, use it as icon instead of #
-			const emojiMatch = this.name.match(/^(\p{Emoji_Presentation}|\p{Extended_Pictographic})/u);
-			if (emojiMatch) {
-				icon.classList.add("space", "channel-emoji-icon");
-				icon.textContent = emojiMatch[0];
-			} else if (this.guild.properties.rules_channel_id === this.id) {
+			if (this.guild.properties.rules_channel_id === this.id) {
 				icon.classList.add("space", "svgicon", "svg-rules");
 			} else {
 				icon.classList.add("space", "svgicon", this.nsfw ? "svg-channelnsfw" : "svg-channel");
@@ -1084,7 +1075,7 @@ class Channel extends SnowFlake {
 
 			const myhtml = document.createElement("p2");
 			myhtml.classList.add("ellipsis");
-			myhtml.textContent = this.displayName;
+			myhtml.textContent = this.name;
 			this.nameSpan = new WeakRef(myhtml);
 			decdiv.appendChild(myhtml);
 			caps.appendChild(decdiv);
