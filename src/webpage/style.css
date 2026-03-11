@@ -4342,11 +4342,13 @@ button.loading::after {
 	display: none;
 }
 
-@media screen and (max-width: 1000px) {
+@media screen and (max-width: 600px) {
 	#sideContainDiv {
 		position: relative;
 		margin-left: -256px;
 	}
+}
+@media screen and (max-width: 1000px) {
 	.flexspace:has(.hypoprofile) {
 		flex-direction: column;
 	}

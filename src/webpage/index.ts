@@ -220,18 +220,27 @@ if (_forceChannelsInit || window.location.pathname.startsWith("/channels")) {
 
 		regSwap(thisUser);
 		loaddesc.textContent = "正在连接服务器...";
-		let _userDefaults: {defaultGuild?: string; defaultChannel?: string} | null = null;
-		// Fetch defaults synchronously before init to avoid race condition
+		let _resolvedDefault: {guild: string; channel: string} | null = null;
+		// Fetch per-user defaults before init to avoid race condition
 		try {
 			const resp = await fetch("/user-defaults.json");
-			if (resp.ok) _userDefaults = await resp.json();
+			if (resp.ok) {
+				const cfg = await resp.json();
+				// Get current user ID from localStorage
+				const info = JSON.parse(localStorage.getItem("userinfos") || "{}");
+				const userId = info.currentuser;
+				const userCfg = userId && cfg.perUser?.[userId];
+				const dest = userCfg || cfg.fallback;
+				if (dest?.guild && dest?.channel) {
+					_resolvedDefault = {guild: dest.guild, channel: dest.channel};
+				}
+			}
 		} catch (e) { /* no defaults */ }
 		const finishLoading = async () => {
 			loaddesc.textContent = "正在加载频道...";
 			// Rewrite URL before init() parses it — init() reads location to decide which guild/channel to load
-			// Only if we're on @me (no specific channel requested)
-			if (window.location.pathname === "/channels/@me" && _userDefaults?.defaultGuild && _userDefaults?.defaultChannel) {
-				history.replaceState(null, "", `/channels/${_userDefaults.defaultGuild}/${_userDefaults.defaultChannel}`);
+			if (window.location.pathname === "/channels/@me" && _resolvedDefault) {
+				history.replaceState(null, "", `/channels/${_resolvedDefault.guild}/${_resolvedDefault.channel}`);
 			}
 			thisUser.loaduser();
 			await thisUser.init();
@@ -243,8 +252,8 @@ if (_forceChannelsInit || window.location.pathname.startsWith("/channels")) {
 			if (templateID) {
 				thisUser.passTemplateID(templateID);
 			}
-			// Close sidebar on mobile after loading
-			{
+			// Close sidebar on mobile (phone only, not tablet) after loading
+			if (window.innerWidth <= 600) {
 				const toggle = document.getElementById("maintoggle") as HTMLInputElement | null;
 				if (toggle) toggle.checked = true;
 			}
