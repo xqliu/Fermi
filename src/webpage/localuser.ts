@@ -1933,17 +1933,12 @@ class Localuser {
 		const location = window.location.href.split("/");
 		this.buildservers();
 		if (location[3] === "channels") {
-			let guild = this.loadGuild(location[4]);
+			const guild = this.loadGuild(location[4]);
 			if (!guild) {
-				// Fallback to @me if requested guild not found (e.g. user not a member yet)
-				console.warn(`[init] guild ${location[4]} not found, falling back to @me`);
-				guild = this.loadGuild("@me");
-				if (!guild) return;
-				await guild.loadChannel(undefined, true);
-			} else {
-				await guild.loadChannel(location[5], true, location[6]);
-				this.channelfocus = this.channelids.get(location[5]);
+				return;
 			}
+			await guild.loadChannel(location[5], true, location[6]);
+			this.channelfocus = this.channelids.get(location[5]);
 		}
 		// Restore typebox content saved before reconnect
 		if (this._savedTypebox) {

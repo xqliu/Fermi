@@ -220,28 +220,11 @@ if (_forceChannelsInit || window.location.pathname.startsWith("/channels")) {
 
 		regSwap(thisUser);
 		loaddesc.textContent = "正在连接服务器...";
-		let _resolvedDefault: {guild: string; channel: string} | null = null;
-		// Fetch per-user defaults before init to avoid race condition
-		try {
-			const resp = await fetch("/user-defaults.json");
-			if (resp.ok) {
-				const cfg = await resp.json();
-				// Get current user ID from localStorage
-				const info = JSON.parse(localStorage.getItem("userinfos") || "{}");
-				const userId = info.currentuser;
-				const userCfg = userId && cfg.perUser?.[userId];
-				const dest = userCfg || cfg.fallback;
-				if (dest?.guild && dest?.channel) {
-					_resolvedDefault = {guild: dest.guild, channel: dest.channel};
-				}
-			}
-		} catch (e) { /* no defaults */ }
+		let _defaultsCfg: any = null;
+		// Pre-fetch defaults (fire-and-forget, used after init)
+		fetch("/user-defaults.json").then(r => r.ok ? r.json() : null).then(d => { _defaultsCfg = d; }).catch(() => {});
 		const finishLoading = async () => {
 			loaddesc.textContent = "正在加载频道...";
-			// Rewrite URL before init() parses it — init() reads location to decide which guild/channel to load
-			if (window.location.pathname === "/channels/@me" && _resolvedDefault) {
-				history.replaceState(null, "", `/channels/${_resolvedDefault.guild}/${_resolvedDefault.channel}`);
-			}
 			thisUser.loaduser();
 			await thisUser.init();
 			const loading = document.getElementById("loading") as HTMLDivElement;
@@ -251,6 +234,18 @@ if (_forceChannelsInit || window.location.pathname.startsWith("/channels")) {
 			console.log("done loading");
 			if (templateID) {
 				thisUser.passTemplateID(templateID);
+			}
+			// Navigate to per-user default guild/channel after init
+			if (window.location.pathname === "/channels/@me" && _defaultsCfg) {
+				const userId = thisUser.user?.id;
+				const dest = (userId && _defaultsCfg.perUser?.[userId]) || _defaultsCfg.fallback;
+				if (dest?.guild && dest?.channel) {
+					const guild = thisUser.guildids.get(dest.guild);
+					if (guild) {
+						guild.loadGuild();
+						await guild.loadChannel(dest.channel, false);
+					}
+				}
 			}
 			// Close sidebar on mobile (phone only, not tablet) after loading
 			if (window.innerWidth <= 600) {
