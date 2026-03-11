@@ -770,9 +770,9 @@ if (_forceChannelsInit || window.location.pathname.startsWith("/channels")) {
 		const recStop = voiceBar.querySelector(".rec-stop") as HTMLElement;
 		const recCancel = voiceBar.querySelector(".rec-cancel") as HTMLElement;
 
-		const stopAndSend = () => {
+		const stopAndSend = async () => {
 			if (!recorder) return;
-			const { file, duration } = recorder.stop();
+			const { file, duration } = await recorder.stop();
 			voiceBtn.classList.remove("recording");
 			voiceBar.classList.remove("active");
 			recorder = null;

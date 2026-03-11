@@ -1,4 +1,50 @@
 /**
+ * Inject duration into a WebM blob's EBML Segment>Info>Duration field.
+ * Chromium's MediaRecorder produces WebM without duration metadata;
+ * this patches the binary to add it so any player reads it correctly.
+ */
+async function fixWebmDuration(blob: Blob, durationMs: number): Promise<Blob> {
+	const buf = await blob.arrayBuffer();
+	const view = new DataView(buf);
+
+	// Find Segment element (EBML ID 0x18538067)
+	let pos = 0;
+	const len = buf.byteLength;
+
+	function matchId(offset: number, id: number[]): boolean {
+		for (let i = 0; i < id.length; i++) {
+			if (offset + i >= len || view.getUint8(offset + i) !== id[i]) return false;
+		}
+		return true;
+	}
+
+	// Find Info element (0x1549A966) inside Segment
+	// Then find Duration (0x4489) inside Info
+	// If Duration exists, overwrite it. If not, we fall back to filename approach.
+	for (pos = 0; pos < len - 8; pos++) {
+		// Duration element ID: 0x44 0x89
+		if (view.getUint8(pos) === 0x44 && view.getUint8(pos + 1) === 0x89) {
+			// Next byte(s) = VINT size of the float payload
+			const sizeStart = pos + 2;
+			if (sizeStart >= len) break;
+			const sizeByte = view.getUint8(sizeStart);
+			// Common case: 0x88 = 8 bytes (float64), 0x84 = 4 bytes (float32)
+			if (sizeByte === 0x88 && sizeStart + 1 + 8 <= len) {
+				// Overwrite the float64 duration
+				view.setFloat64(sizeStart + 1, durationMs);
+				return new Blob([buf], { type: blob.type });
+			} else if (sizeByte === 0x84 && sizeStart + 1 + 4 <= len) {
+				view.setFloat32(sizeStart + 1, durationMs);
+				return new Blob([buf], { type: blob.type });
+			}
+		}
+	}
+
+	// Duration field not found — return original blob unchanged
+	return blob;
+}
+
+/**
  * Voice recording using browser MediaRecorder API.
  * iOS Safari requires audio/mp4; Chrome/Firefox use audio/webm.
  */
@@ -48,7 +94,7 @@ export class VoiceRecorder {
 		}, 500);
 	}
 
-	stop(): { file: File; duration: number } {
+	stop(): Promise<{ file: File; duration: number }> {
 		return this._finish(false);
 	}
 
@@ -56,7 +102,7 @@ export class VoiceRecorder {
 		this._finish(true);
 	}
 
-	private _finish(discard: boolean): { file: File; duration: number } {
+	private async _finish(discard: boolean): Promise<{ file: File; duration: number }> {
 		const duration = this.elapsed;
 		if (this._timerInterval) {
 			clearInterval(this._timerInterval);
@@ -74,7 +120,15 @@ export class VoiceRecorder {
 		if (discard || this.chunks.length === 0) {
 			file = new File([], "recording." + this.extension, { type: this.mimeType });
 		} else {
-			const blob = new Blob(this.chunks, { type: this.mimeType });
+			let blob: Blob = new Blob(this.chunks, { type: this.mimeType });
+			// Inject duration into WebM header so players can read it
+			if (this.mimeType.includes("webm") && duration > 0) {
+				try {
+					blob = await fixWebmDuration(blob, duration * 1000);
+				} catch (e) {
+					console.warn("[voice] failed to fix webm duration:", e);
+				}
+			}
 			const timestamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
 			file = new File([blob], `voice-${timestamp}-${duration}s.${this.extension}`, { type: this.mimeType });
 		}
