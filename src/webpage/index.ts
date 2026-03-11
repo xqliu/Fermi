@@ -220,19 +220,11 @@ if (_forceChannelsInit || window.location.pathname.startsWith("/channels")) {
 
 		regSwap(thisUser);
 		loaddesc.textContent = "正在连接服务器...";
+		let _userDefaults: {defaultGuild?: string; defaultChannel?: string} | null = null;
+		// Pre-fetch defaults (non-blocking)
+		fetch("/user-defaults.json").then(r => r.json()).then(d => { _userDefaults = d; }).catch(() => {});
 		const finishLoading = async () => {
 			loaddesc.textContent = "正在加载频道...";
-			// Redirect to default guild/channel before init() parses the URL
-			if (window.location.pathname === "/channels/@me") {
-				try {
-					const defaults = await fetch("/user-defaults.json").then(r => r.json());
-					if (defaults.defaultGuild && defaults.defaultChannel) {
-						history.replaceState(null, "", `/channels/${defaults.defaultGuild}/${defaults.defaultChannel}`);
-					}
-				} catch (e) {
-					console.log("[defaults] no user-defaults.json, staying on @me");
-				}
-			}
 			thisUser.loaduser();
 			await thisUser.init();
 			const loading = document.getElementById("loading") as HTMLDivElement;
@@ -242,6 +234,15 @@ if (_forceChannelsInit || window.location.pathname.startsWith("/channels")) {
 			console.log("done loading");
 			if (templateID) {
 				thisUser.passTemplateID(templateID);
+			}
+			// Navigate to default guild/channel if on @me
+			if (window.location.pathname === "/channels/@me" && _userDefaults?.defaultChannel) {
+				const ch = thisUser.channelids.get(_userDefaults.defaultChannel);
+				if (ch) {
+					const guild = ch.guild;
+					guild.loadGuild();
+					await guild.loadChannel(_userDefaults.defaultChannel, false);
+				}
 			}
 			// Close sidebar on mobile after loading
 			{
