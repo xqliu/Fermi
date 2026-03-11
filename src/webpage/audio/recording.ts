@@ -76,7 +76,7 @@ export class VoiceRecorder {
 		} else {
 			const blob = new Blob(this.chunks, { type: this.mimeType });
 			const timestamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
-			file = new File([blob], `voice-${timestamp}.${this.extension}`, { type: this.mimeType });
+			file = new File([blob], `voice-${timestamp}-${duration}s.${this.extension}`, { type: this.mimeType });
 		}
 
 		this.chunks = [];

@@ -546,6 +546,13 @@ class MediaPlayer {
 		} finally {
 			output.filename = new URL(url).pathname.split("/").at(-1);
 			prog.close();
+			// Extract duration from voice filename pattern: voice-...-Ns.ext
+			if (!output.length && output.filename) {
+				const durMatch = output.filename.match(/-(\d+)s\.\w+$/);
+				if (durMatch) {
+					output.length = parseInt(durMatch[1]) * 1000;
+				}
+			}
 			if (!output.length) {
 				output.length = new Promise<number>(async (res) => {
 					const audio = document.createElement("audio");
