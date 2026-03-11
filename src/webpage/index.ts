@@ -232,6 +232,13 @@ if (_forceChannelsInit || window.location.pathname.startsWith("/channels")) {
 			if (templateID) {
 				thisUser.passTemplateID(templateID);
 			}
+			// Auto-open first pinned DM if landing on /channels/@me with no specific channel
+			if (window.location.pathname === "/channels/@me") {
+				const pinnedDmImg = document.querySelector(".pinned-dm-icon img") as HTMLElement | null;
+				if (pinnedDmImg) {
+					pinnedDmImg.click();
+				}
+			}
 			thisUser.subscribePush().catch((e: any) => console.warn("[push] subscribe failed:", e));
 		};
 		let retryCount = 0;

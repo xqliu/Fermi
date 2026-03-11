@@ -2353,7 +2353,7 @@ class Localuser {
 				}
 			}
 			const pinBtn = document.createElement("div");
-			pinBtn.classList.add("servernoti");
+			pinBtn.classList.add("servernoti", "pinned-dm-icon");
 			pinBtn.dataset.pinnedDmName = pinName;
 			const pinImg = document.createElement("img");
 			pinImg.classList.add("pfp", "servericon");
