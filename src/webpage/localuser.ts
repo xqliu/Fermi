@@ -106,6 +106,7 @@ class Localuser {
 	errorBackoff = 0;
 	private reconnectTimeout: ReturnType<typeof setTimeout> | undefined;
 	private reconnectCountdown: ReturnType<typeof setInterval> | undefined;
+	private _livenessInterval: ReturnType<typeof setInterval> | undefined;
 
 	quickSwitcher: QuickSwitcher | undefined;
 
@@ -135,6 +136,21 @@ class Localuser {
 		}
 	};
 	private _onNetworkResume = () => this._checkAndReconnect();
+	private _ensureLivenessMonitor() {
+		if (this._livenessInterval) return;
+		this._livenessInterval = setInterval(() => {
+			if (document.visibilityState !== "visible") return;
+			if (this._reconnecting) return;
+			if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return;
+			const staleness = Date.now() - this._lastWsActivityAt;
+			// iOS PWA can leave a websocket silently stale without close/visibility events.
+			// If nothing at all has arrived for a while while app stays visible, probe it.
+			if (staleness > Math.max(this.heartbeat_interval * 2, 45000)) {
+				console.warn(`[liveness] stale websocket (${Math.round(staleness / 1000)}s), probing`);
+				this._checkAndReconnect();
+			}
+		}, 15000);
+	}
 	private _checkAndReconnect() {
 		console.log(`[reconnect] _checkAndReconnect: ws=${this.ws ? 'exists' : 'null'}, readyState=${this.ws?.readyState}, _reconnecting=${this._reconnecting}`);
 		// Debug: show reconnect state on screen (temporary)
@@ -235,12 +251,17 @@ class Localuser {
 		document.addEventListener("visibilitychange", this._onVisibilityChange);
 		window.addEventListener("online", this._onNetworkResume);
 		window.addEventListener("focus", this._onNetworkResume);
+		this._ensureLivenessMonitor();
 		this._networkListenersActive = true;
 	}
 	private _unregisterNetworkListeners() {
 		document.removeEventListener("visibilitychange", this._onVisibilityChange);
 		window.removeEventListener("online", this._onNetworkResume);
 		window.removeEventListener("focus", this._onNetworkResume);
+		if (this._livenessInterval) {
+			clearInterval(this._livenessInterval);
+			this._livenessInterval = undefined;
+		}
 		this._networkListenersActive = false;
 	}
 	channelids: Map<string, Channel> = new Map();
