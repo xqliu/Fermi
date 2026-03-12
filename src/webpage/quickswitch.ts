@@ -10,6 +10,13 @@ export class QuickSwitcher {
 	private container: HTMLElement | null = null;
 	private localuser: Localuser;
 
+	private isBubbleEligible(channel: Channel): boolean {
+		// Only show navigable channels that have a message timeline.
+		// Exclude category / voice / stage placeholders that can land on empty views.
+		if (!channel.visible) return false;
+		return channel.type !== 4 && channel.type !== 2 && channel.type !== 13;
+	}
+
 	constructor(localuser: Localuser) {
 		this.localuser = localuser;
 		this.container = document.getElementById("quick-bubbles");
@@ -42,6 +49,7 @@ export class QuickSwitcher {
 		for (const guild of this.localuser.guilds) {
 			for (const channel of guild.channels ?? []) {
 				if (channel.id === currentId) continue;
+				if (!this.isBubbleEligible(channel)) continue;
 				if ((channel.mentions > 0 || channel.hasunreads) && !this.recents.includes(channel.id)) {
 					unreadExtra.push(channel.id);
 				}
@@ -67,6 +75,7 @@ export class QuickSwitcher {
 
 	/** Called on messageCreate — surfaces unread channels not yet in recents */
 	push(channel: Channel): void {
+		if (!this.isBubbleEligible(channel)) return;
 		if (channel === this.localuser.channelfocus) {
 			// User is currently in this channel (e.g. sending a DM) — add to recents
 			// so it shows as a bubble after they navigate away
@@ -99,7 +108,7 @@ export class QuickSwitcher {
 			if (id === currentId || seen.has(id)) continue;
 			seen.add(id);
 			const channel = this.localuser.channelids.get(id);
-			if (!channel) continue;
+			if (!channel || !this.isBubbleEligible(channel)) continue;
 			candidates.push(channel);
 		}
 
