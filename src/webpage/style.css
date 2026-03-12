@@ -5065,7 +5065,7 @@ img.error::after {
 	position: fixed;
 	right: 8px;
 	/* Lift bubble stack higher so it doesn't cover newest messages on tall iPhones */
-	bottom: calc(120px + env(safe-area-inset-bottom, 0px));
+	bottom: calc(132px + env(safe-area-inset-bottom, 0px));
 	flex-direction: column;
 	gap: 6px;
 	z-index: 500;
