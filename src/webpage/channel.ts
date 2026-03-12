@@ -2892,16 +2892,17 @@ class Channel extends SnowFlake {
 		});
 		notiselect.show();
 	}
-	async putmessages() {
+	async putmessages(force = false) {
 		//TODO swap out with the WS op code
-		if (this.allthewayup) {
+		if (!force && this.allthewayup) {
 			return;
 		}
-		if (this.lastreadmessageid && this.messages.has(this.lastreadmessageid)) {
+		if (!force && this.lastreadmessageid && this.messages.has(this.lastreadmessageid)) {
 			return;
 		}
-		const j = await fetch(this.info.api + "/channels/" + this.id + "/messages?limit=100", {
+		const j = await fetch(this.info.api + "/channels/" + this.id + "/messages?limit=100&_=" + Date.now(), {
 			headers: this.headers,
+			cache: "no-store",
 		});
 
 		const response = (await j.json()) as messagejson[];
@@ -3112,13 +3113,20 @@ class Channel extends SnowFlake {
 				scrollToBottom = true;
 			}
 		}
+		if (!id && this.trueLastMessageid) {
+			id = this.trueLastMessageid;
+		}
 		if (!id) {
 			// No lastmessageid — try fetching latest message from API
 			// (Spacebar REST API often returns last_message_id=null)
 			try {
-				const resp = await fetch(this.info.api + "/channels/" + this.id + "/messages?limit=1", {
-					headers: this.localuser.headers,
-				});
+				const resp = await fetch(
+					this.info.api + "/channels/" + this.id + "/messages?limit=1&_=" + Date.now(),
+					{
+						headers: this.localuser.headers,
+						cache: "no-store",
+					},
+				);
 				if (resp.ok) {
 					const msgs = await resp.json();
 					if (msgs.length > 0) {
@@ -3129,6 +3137,15 @@ class Channel extends SnowFlake {
 				}
 			} catch (e) {
 				console.error("[channel] failed to fetch latest message:", e);
+			}
+		}
+		if (!id && (this.mentions > 0 || this.hasunreads)) {
+			try {
+				await this.putmessages(true);
+				id = this.lastmessageid || this.trueLastMessageid;
+				if (id) scrollToBottom = true;
+			} catch (e) {
+				console.error("[channel] forced backfill after unread failed:", e);
 			}
 		}
 		if (!id) {
