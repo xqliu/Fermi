@@ -612,11 +612,22 @@ class Localuser {
 	inrelation = new Set<User>();
 	// Saved typebox content across reconnects
 	private _savedTypebox = "";
+	// Remember where we were before reconnect so init() can restore
+	private _savedGuildId = "";
+	private _savedChannelId = "";
 	outoffocus(): void {
 		// Preserve typebox content before clearing UI (reconnect scenario)
 		const typebox = document.getElementById("typebox");
 		if (typebox && typebox.textContent) {
 			this._savedTypebox = typebox.textContent;
+		}
+		// Remember current guild/channel before clearing (for reconnect restore)
+		if (this.channelfocus) {
+			this._savedChannelId = this.channelfocus.id;
+			this._savedGuildId = this.channelfocus.guild?.id || this.lookingguild?.id || "";
+		} else if (this.lookingguild) {
+			this._savedGuildId = this.lookingguild.id;
+			this._savedChannelId = "";
 		}
 		const servers = document.getElementById("servers") as HTMLDivElement;
 		servers.innerHTML = "";
@@ -1951,15 +1962,35 @@ class Localuser {
 	async init() {
 		this.quickSwitcher = new QuickSwitcher(this);
 		this.quickSwitcher.refreshBadges();
-		const location = window.location.href.split("/");
 		this.buildservers();
-		if (location[3] === "channels") {
-			const guild = this.loadGuild(location[4]);
+
+		// Determine which guild/channel to restore.
+		// Prefer saved state from outoffocus() (reconnect scenario) over URL parsing.
+		// This prevents fallback to @me/friends-list when URL is stale.
+		let guildId = this._savedGuildId;
+		let channelId = this._savedChannelId;
+		let messageId: string | undefined;
+		this._savedGuildId = "";
+		this._savedChannelId = "";
+
+		if (!guildId) {
+			const location = window.location.href.split("/");
+			if (location[3] === "channels") {
+				guildId = location[4] || "";
+				channelId = location[5] || "";
+				messageId = location[6];
+			}
+		}
+
+		if (guildId) {
+			const guild = this.loadGuild(guildId);
 			if (!guild) {
 				return;
 			}
-			await guild.loadChannel(location[5], true, location[6]);
-			this.channelfocus = this.channelids.get(location[5]);
+			await guild.loadChannel(channelId || undefined, true, messageId);
+			if (channelId) {
+				this.channelfocus = this.channelids.get(channelId);
+			}
 		}
 		// Restore typebox content saved before reconnect
 		if (this._savedTypebox) {
