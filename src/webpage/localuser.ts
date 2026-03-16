@@ -267,11 +267,27 @@ class Localuser {
 				.finally(() => { this._reconnecting = false; });
 		}
 	}
+	// Touch/click liveness check: iOS freezes setTimeout/setInterval,
+	// so timer-based watchdogs can't detect zombie WS. User interaction
+	// is the most reliable trigger on iOS PWA.
+	private _onUserInteraction = () => {
+		if (this._reconnecting) return;
+		if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return;
+		const staleness = Date.now() - this._lastWsActivityAt;
+		if (staleness > 20000) {
+			// No WS activity for 20s while user is actively touching screen = zombie
+			console.warn(`[touch-liveness] zombie WS detected (stale ${Math.round(staleness/1000)}s), forcing reconnect`);
+			try { this.ws.close(4000, "touch liveness"); } catch {}
+			this._checkAndReconnect();
+		}
+	};
 	private _registerNetworkListeners() {
 		if (this._networkListenersActive) return;
 		document.addEventListener("visibilitychange", this._onVisibilityChange);
 		window.addEventListener("online", this._onNetworkResume);
 		window.addEventListener("focus", this._onNetworkResume);
+		// iOS freezes timers — use touch/click as reliable liveness trigger
+		document.addEventListener("pointerdown", this._onUserInteraction, {passive: true});
 		this._ensureLivenessMonitor();
 		this._networkListenersActive = true;
 	}
@@ -279,6 +295,7 @@ class Localuser {
 		document.removeEventListener("visibilitychange", this._onVisibilityChange);
 		window.removeEventListener("online", this._onNetworkResume);
 		window.removeEventListener("focus", this._onNetworkResume);
+		document.removeEventListener("pointerdown", this._onUserInteraction);
 		if (this._livenessInterval) {
 			clearInterval(this._livenessInterval);
 			this._livenessInterval = undefined;
