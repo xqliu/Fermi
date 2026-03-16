@@ -214,6 +214,7 @@ class Localuser {
 				this.reconnectCountdown = undefined;
 			}
 			this._reconnecting = true;
+			this._reconnectingSince = Date.now();
 			this.initwebsocket(true, true)
 				.then(async () => {
 					this.loaduser();
@@ -272,12 +273,28 @@ class Localuser {
 	// so timer-based watchdogs can't detect zombie WS. User interaction
 	// is the most reliable trigger on iOS PWA.
 	private _onUserInteraction = () => {
-		if (this._reconnecting) return;
-		if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return;
 		const staleness = Date.now() - this._lastWsActivityAt;
+
+		// Case 1: reconnecting but stuck (connecting hangs, timer frozen by iOS)
+		if (this._reconnecting) {
+			if (this._reconnectingSince && Date.now() - this._reconnectingSince > 15000) {
+				console.warn(`[touch] reconnect stuck ${Math.round((Date.now()-this._reconnectingSince)/1000)}s, nuking`);
+				// Kill current WS attempt and force fresh
+				try { this.ws?.close(); } catch {}
+				this.ws = undefined;
+				this._reconnecting = false;
+				this._reconnectingSince = 0;
+				this._heartbeatAckPending = false;
+				// Small delay to avoid immediate re-entry
+				setTimeout(() => this._checkAndReconnect(), 500);
+			}
+			return;
+		}
+
+		// Case 2: WS appears open but zombie
+		if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return;
 		if (staleness > 20000) {
-			// No WS activity for 20s while user is actively touching screen = zombie
-			console.warn(`[touch-liveness] zombie WS detected (stale ${Math.round(staleness/1000)}s), forcing reconnect`);
+			console.warn(`[touch] zombie WS (idle ${Math.round(staleness/1000)}s), forcing reconnect`);
 			try { this.ws.close(4000, "touch liveness"); } catch {}
 			this._checkAndReconnect();
 		}
