@@ -197,10 +197,19 @@ export class QuickSwitcher {
 		label.textContent = channel.name ?? "";
 		div.appendChild(label);
 
-		// Click: navigate
-		div.addEventListener("click", () => {
+		// Click: navigate + force-fetch latest messages (bubble = unread indicator)
+		div.addEventListener("click", async () => {
 			const toggle = document.getElementById("maintoggle") as HTMLInputElement | null;
 			if (toggle) toggle.checked = true;
+
+			// If already viewing this channel, skip full getHTML — just fetch new messages
+			if (this.localuser.channelfocus === channel) {
+				await channel.putmessages(true);
+				if (channel.lastmessageid) {
+					channel.infinite.focus(channel.lastmessageid, false, true);
+				}
+				return;
+			}
 			this.localuser.goToChannel(channel.id);
 		});
 
