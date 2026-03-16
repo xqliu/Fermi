@@ -516,6 +516,10 @@ class Localuser {
 	unknownRead = new Map<string, readStateEntry>();
 	async gottenReady(ready: readyjson): Promise<void> {
 		this._resumedSuccessfully = false; // READY means full reconnect, not resume
+		// Re-register push subscription on every WS reconnect.
+		// iOS kills the Service Worker in background, invalidating the push endpoint.
+		// Without re-subscribing, notifications stop until user manually kills the PWA.
+		this.subscribePush().catch((e: any) => console.warn("[push] re-subscribe on READY failed:", e));
 		await I18n.done;
 		this.errorBackoff = 0;
 		this.channelids.clear();

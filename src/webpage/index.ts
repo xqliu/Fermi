@@ -4,6 +4,24 @@ export const FERMI_VERSION: string = "__BUILD_VERSION__";
 window.__moduleLoaded = true;
 // @ts-ignore
 if (window.__loadingDebug) window.__loadingDebug("index.js 已加载, v=" + FERMI_VERSION);
+// @ts-ignore
+window.__channelDebug = (stage: string, data?: any) => {
+	try {
+		const line = `[channel-debug] ${new Date().toISOString()} ${stage} ${data ? JSON.stringify(data) : ""}`;
+		console.log(line);
+		const key = "channel-debug-log";
+		const arr = JSON.parse(localStorage.getItem(key) || "[]");
+		arr.push(line);
+		if (arr.length > 200) arr.splice(0, arr.length - 200);
+		localStorage.setItem(key, JSON.stringify(arr));
+		const el = document.getElementById("loading-debug") as HTMLElement | null;
+		if (el && document.getElementById("loading")?.classList.contains("loading")) {
+			el.textContent = line;
+		}
+	} catch (e) {
+		console.error("[channel-debug] failed to persist log", e);
+	}
+};
 
 // iOS PWA: detect resume from suspension via visibilitychange + time gap.
 // visibilitychange is the most reliable event on iOS for detecting resume.
