@@ -113,6 +113,7 @@ class Localuser {
 	// Network resume listeners (visibilitychange / online / focus)
 	private _networkListenersActive = false;
 	private _reconnecting = false;
+	private _reconnectingSince = 0;
 	private _resumedSuccessfully = false;
 	// correctness: force exactly one message backfill after full reconnect
 	needsBackfillOnce = false;
@@ -139,17 +140,37 @@ class Localuser {
 	private _ensureLivenessMonitor() {
 		if (this._livenessInterval) return;
 		this._livenessInterval = setInterval(() => {
-			if (document.visibilityState !== "visible") return;
-			if (this._reconnecting) return;
-			if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return;
 			const staleness = Date.now() - this._lastWsActivityAt;
+			const wsState = this.ws ? this.ws.readyState : -1;
+			const vis = document.visibilityState;
+
+			// On-screen diagnostic (PWA has no DevTools)
+			const diag = document.getElementById("ws-diag");
+			if (diag) {
+				diag.textContent = `WS:${wsState} stale:${Math.round(staleness/1000)}s reconn:${this._reconnecting} hbPend:${this._heartbeatAckPending} vis:${vis}`;
+			}
+
+			if (vis !== "visible") return;
+			if (this._reconnecting) {
+				// Deadlock guard: if _reconnecting stuck for >30s, force reset
+				if (!this._reconnectingSince) this._reconnectingSince = Date.now();
+				if (Date.now() - this._reconnectingSince > 30000) {
+					console.error("[liveness] _reconnecting stuck for 30s, force reset");
+					this._reconnecting = false;
+					this._reconnectingSince = 0;
+					this._checkAndReconnect();
+				}
+				return;
+			}
+			this._reconnectingSince = 0;
+			if (!this.ws || wsState !== WebSocket.OPEN) return;
 			// iOS PWA can leave a websocket silently stale without close/visibility events.
 			// If nothing at all has arrived for a while while app stays visible, probe it.
 			if (staleness > Math.max(this.heartbeat_interval * 2, 45000)) {
 				console.warn(`[liveness] stale websocket (${Math.round(staleness / 1000)}s), probing`);
 				this._checkAndReconnect();
 			}
-		}, 15000);
+		}, 5000); // Check every 5s instead of 15s for faster detection
 	}
 	private _checkAndReconnect() {
 		console.log(`[reconnect] _checkAndReconnect: ws=${this.ws ? 'exists' : 'null'}, readyState=${this.ws?.readyState}, _reconnecting=${this._reconnecting}`);
