@@ -147,8 +147,8 @@ class Localuser {
 			// On-screen diagnostic (PWA has no DevTools)
 			const diag = document.getElementById("ws-diag");
 			if (diag) {
-				const ws = ["conn","open","closing","closed","none"][wsState+1] || "?";
-				diag.textContent = `${ws}|${Math.round(staleness/1000)}s|r:${this._reconnecting?1:0}|h:${this._heartbeatAckPending?1:0}`;
+				const ws = ["connecting","open","closing","closed","no-ws"][wsState+1] || "?";
+				diag.textContent = `ws:${ws} idle:${Math.round(staleness/1000)}s reconn:${this._reconnecting} hb:${this._heartbeatAckPending}`;
 			}
 
 			if (vis !== "visible") return;
