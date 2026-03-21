@@ -4,6 +4,8 @@
  */
 const PINNED_DM_USERS: string[] = ["Lucky"];
 
+export const FAVICON_DEFAULT_SRC = "/avatars/1469391000983101480/b2fde4cb284902788fe4278789de063c.png?size=64";
+
 import {Guild} from "./guild.js";
 import {Channel} from "./channel.js";
 import {QuickSwitcher} from "./quickswitch.js";
@@ -2726,7 +2728,7 @@ class Localuser {
 	static favImg = this.getFaviconImg();
 	static getFaviconImg() {
 		const img = document.createElement("img");
-		img.src = "/avatars/1469391000983101480/b2fde4cb284902788fe4278789de063c.png?size=64";
+		img.src = FAVICON_DEFAULT_SRC;
 		return img;
 	}
 	last = "-1";
@@ -2738,7 +2740,7 @@ class Localuser {
 			if (this.last === text) return;
 			this.last = text;
 			if (text === "0") {
-				favicon.href = "/avatars/1469391000983101480/b2fde4cb284902788fe4278789de063c.png?size=64&v=2";
+				favicon.href = FAVICON_DEFAULT_SRC;
 				return;
 			}
 			if (+text > 99) text = "+99";
