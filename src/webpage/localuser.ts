@@ -1933,6 +1933,8 @@ class Localuser {
 		const channel = this.channelids.get(channelid);
 		if (channel) {
 			const guild = channel.guild;
+			// Save last active location for cold-start restore
+			try { localStorage.setItem("lastGuild", guild.id); localStorage.setItem("lastChannel", channelid); } catch {}
 			guild.loadGuild();
 			await guild.loadChannel(channelid, addstate, messageid);
 		} else {

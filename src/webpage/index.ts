@@ -120,7 +120,14 @@ if (window.location.pathname === "/app" || window.location.pathname === "/") {
 	try {
 		const info = JSON.parse(localStorage.getItem("userinfos") || "{}");
 		if (info.currentuser && info.users && Object.keys(info.users).length > 0) {
-			history.replaceState(null, "", "/channels/@me");
+			// Restore last active channel from localStorage (cold-start after iOS PWA kill)
+			const lastGuild = localStorage.getItem("lastGuild");
+			const lastChannel = localStorage.getItem("lastChannel");
+			if (lastGuild && lastChannel) {
+				history.replaceState(null, "", `/channels/${lastGuild}/${lastChannel}`);
+			} else {
+				history.replaceState(null, "", "/channels/@me");
+			}
 			_forceChannelsInit = true;
 		} else {
 			history.replaceState(null, "", "/login");
