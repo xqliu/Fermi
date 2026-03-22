@@ -120,6 +120,7 @@ class Localuser {
 	// correctness: force exactly one message backfill after full reconnect
 	needsBackfillOnce = false;
 	private _heartbeatAckPending = false;
+	private _resumeSupported = true; // set false after server rejects resume (op 9)
 	private _lastWsActivityAt = Date.now();
 	private _onVisibilityChange = () => {
 		if (document.visibilityState === "visible") {
@@ -169,7 +170,7 @@ class Localuser {
 			if (!this.ws || wsState !== WebSocket.OPEN) return;
 			// iOS PWA can leave a websocket silently stale without close/visibility events.
 			// If nothing at all has arrived for a while while app stays visible, probe it.
-			if (staleness > Math.max(this.heartbeat_interval * 2, 45000)) {
+			if (staleness > (this.heartbeat_interval || 15000) + 5000) {
 				console.warn(`[liveness] stale websocket (${Math.round(staleness / 1000)}s), probing`);
 				this._checkAndReconnect();
 			}
@@ -194,15 +195,15 @@ class Localuser {
 				this._heartbeatAckPending = false;
 			}
 			// If ACK arrives, op 11 handler will clear _heartbeatAckPending
-			// If not, force close after 5s
+			// If not, force close after 3s
 			const probeWs = this.ws;
 			setTimeout(() => {
 				if (this._heartbeatAckPending && this.ws === probeWs) {
-					console.warn("[probe] no heartbeat ACK in 5s, forcing close");
+					console.warn("[probe] no heartbeat ACK in 3s, forcing close");
 					this.ws?.close();
 				}
 				this._heartbeatAckPending = false;
-			}, 5000);
+			}, 3000);
 			return;
 		}
 		if (!this.ws || this.ws.readyState === WebSocket.CLOSED || this.ws.readyState === WebSocket.CLOSING) {
@@ -217,7 +218,8 @@ class Localuser {
 			}
 			this._reconnecting = true;
 			this._reconnectingSince = Date.now();
-			this.initwebsocket(true, true)
+			const useResume = this._resumeSupported;
+			this.initwebsocket(useResume, true)
 				.then(async () => {
 					this.loaduser();
 					if (this._resumedSuccessfully) {
@@ -878,10 +880,10 @@ class Localuser {
 				(wsCodesRetry.has(event.code) && this.errorBackoff === 0)
 			) {
 				this.errorBackoff++;
-				console.log("[ws-close] fast path: attempting resume");
+				console.log(`[ws-close] fast path: attempting ${this._resumeSupported ? 'resume' : 'identify'}`);
 				Promise.race([
-					this.initwebsocket(true, true),
-					new Promise((_, rej) => setTimeout(() => rej(new Error("fast resume timeout 15s")), 15000)),
+					this.initwebsocket(this._resumeSupported, true),
+					new Promise((_, rej) => setTimeout(() => rej(new Error("fast reconnect timeout 15s")), 15000)),
 				]).then(async () => {
 					console.log("[ws-close] fast reconnect succeeded");
 					this.loaduser();
@@ -985,6 +987,10 @@ class Localuser {
 						const withTimeout = <T>(p: Promise<T>, ms: number): Promise<T> =>
 							Promise.race([p, new Promise<T>((_, rej) => setTimeout(() => rej(new Error("timeout")), ms))]);
 						const tryConnect = async () => {
+							if (!this._resumeSupported) {
+								await withTimeout(this.initwebsocket(false, true), 15000);
+								return;
+							}
 							try {
 								await withTimeout(this.initwebsocket(true, true), 15000);
 							} catch {
@@ -1063,6 +1069,7 @@ class Localuser {
 		if (getDeveloperSettings().gatewayLogging) console.debug(temp);
 		if (temp.s) this.lastSequence = temp.s;
 		if (temp.op === 9 && this.ws) {
+			this._resumeSupported = false; // server rejected resume — skip future attempts
 			this.resume_gateway_url = undefined;
 			this.session_id = undefined;
 			this.errorBackoff = 0;
@@ -2082,6 +2089,7 @@ class Localuser {
 		this.searching = false;
 		let guild = this.guildids.get(id);
 		if (!guild) {
+			console.warn(`[loadGuild] id="${id}" not found, falling back to @me`, new Error().stack);
 			guild = this.guildids.get("@me");
 		}
 		console.log(forceReload);
