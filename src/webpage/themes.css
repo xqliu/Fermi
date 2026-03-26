@@ -18,45 +18,49 @@
 .Dark-theme {
 	color-scheme: dark;
 	--primary-button-bg: color-mix(in srgb, #777777 10%, var(--accent-color));
-	--primary-bg: #303339;
-	--primary-hover: #272b31;
-	--primary-text: #dfdfdf;
-	--primary-text-soft: #adb8b9;
-	--secondary-bg: #16191b;
-	--secondary-hover: #252b2c;
-	--servers-bg: #191c1d;
-	--channels-bg: #2a2d33;
-	--channel-selected: #3c4046;
-	--typebox-bg: #3a3e45;
-	--button-bg: #4e5457;
-	--button-hover: #6b7174;
+	--primary-bg: rgba(35, 38, 45, 0.75);
+	--primary-hover: rgba(30, 33, 40, 0.8);
+	--primary-text: #e8e8ec;
+	--primary-text-soft: #b0b8c0;
+	--secondary-bg: rgba(18, 20, 24, 0.7);
+	--secondary-hover: rgba(30, 34, 38, 0.75);
+	--servers-bg: rgba(16, 18, 22, 0.8);
+	--channels-bg: rgba(28, 32, 40, 0.65);
+	--channel-selected: rgba(60, 65, 78, 0.7);
+	--typebox-bg: rgba(50, 54, 64, 0.8);
+	--button-bg: rgba(70, 76, 86, 0.8);
+	--button-hover: rgba(90, 96, 106, 0.85);
 	--spoiler-bg: #000000;
-	--link: #5ca9ed;
-	--primary-text-prominent: #efefef;
-	--dock-bg: #1b1e20;
-	--card-bg: #000000;
+	--link: #6db5f5;
+	--primary-text-prominent: #f2f2f5;
+	--dock-bg: rgba(18, 20, 26, 0.85);
+	--card-bg: rgba(10, 10, 14, 0.8);
+	--glass-blur: 16px;
+	--glass-border: rgba(255, 255, 255, 0.06);
 }
 /*TODO This is a copy of the dark theme, might want to look into other solutions*/
 .no-theme {
 	color-scheme: dark;
 	--primary-button-bg: color-mix(in srgb, #777777 10%, var(--accent-color));
-	--primary-bg: #303339;
-	--primary-hover: #272b31;
-	--primary-text: #dfdfdf;
-	--primary-text-soft: #adb8b9;
-	--secondary-bg: #16191b;
-	--secondary-hover: #252b2c;
-	--servers-bg: #191c1d;
-	--channels-bg: #2a2d33;
-	--channel-selected: #3c4046;
-	--typebox-bg: #3a3e45;
-	--button-bg: #4e5457;
-	--button-hover: #6b7174;
+	--primary-bg: rgba(35, 38, 45, 0.75);
+	--primary-hover: rgba(30, 33, 40, 0.8);
+	--primary-text: #e8e8ec;
+	--primary-text-soft: #b0b8c0;
+	--secondary-bg: rgba(18, 20, 24, 0.7);
+	--secondary-hover: rgba(30, 34, 38, 0.75);
+	--servers-bg: rgba(16, 18, 22, 0.8);
+	--channels-bg: rgba(28, 32, 40, 0.65);
+	--channel-selected: rgba(60, 65, 78, 0.7);
+	--typebox-bg: rgba(50, 54, 64, 0.8);
+	--button-bg: rgba(70, 76, 86, 0.8);
+	--button-hover: rgba(90, 96, 106, 0.85);
 	--spoiler-bg: #000000;
-	--link: #5ca9ed;
-	--primary-text-prominent: #efefef;
-	--dock-bg: #1b1e20;
-	--card-bg: #000000;
+	--link: #6db5f5;
+	--primary-text-prominent: #f2f2f5;
+	--dock-bg: rgba(18, 20, 26, 0.85);
+	--card-bg: rgba(10, 10, 14, 0.8);
+	--glass-blur: 16px;
+	--glass-border: rgba(255, 255, 255, 0.06);
 }
 
 .WHITE-theme {
