@@ -90,14 +90,11 @@ self.addEventListener("activate", async (event: any) => {
 			// They'll continue with network fetches; checkCache will retry later
 		}
 		await (self as any).clients.claim();
-		// Force all clients to reload with new code
+		// Notify clients about the new version (they decide whether to reload)
 		if (downloadOk) {
 			const clients = await (self as any).clients.matchAll();
 			for (const client of clients) {
-				// postMessage for new clients that listen for "newVersion"
 				client.postMessage({ code: "newVersion", version: BUILD_VERSION });
-				// navigate() forces reload even for old clients that don't listen
-				try { await client.navigate(client.url); } catch (_) {}
 			}
 		}
 	})());
