@@ -2449,6 +2449,7 @@ span.instanceStatus {
 #realbox {
 	padding: 0 16px 38px 16px;
 	position: relative;
+	background: transparent;
 }
 .commandFront {
 	user-select: none !important;
