@@ -2483,6 +2483,7 @@ span.instanceStatus {
 	border-radius: 20px;
 	display: flex;
 	flex-direction: row;
+	align-items: center;
 	position: relative;
 }
 
