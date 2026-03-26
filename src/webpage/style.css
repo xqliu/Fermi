@@ -2450,7 +2450,7 @@ span.instanceStatus {
 #realbox {
 	padding: 0 16px 38px 16px;
 	position: relative;
-	background: color-mix(in srgb, var(--primary-bg) 75%, transparent);
+	background: color-mix(in srgb, var(--primary-bg) 50%, transparent);
 	backdrop-filter: blur(12px);
 	-webkit-backdrop-filter: blur(12px);
 }
