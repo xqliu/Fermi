@@ -265,7 +265,6 @@ body {
 #chatArea {
 	display: flex;
 	min-width: 40%;
-	position: relative;
 }
 .flexttb {
 	min-width: 0;
@@ -2367,7 +2366,7 @@ span.instanceStatus {
 }
 .scroller {
 	flex: 1;
-	padding-bottom: 80px;
+	padding-bottom: 22px;
 	overflow-y: auto;
 	flex-grow: 1;
 	display: flex;
@@ -2449,11 +2448,7 @@ span.instanceStatus {
 }
 #realbox {
 	padding: 0 16px 28px 16px;
-	padding-bottom: calc(28px + env(safe-area-inset-bottom, 0px));
 	position: relative;
-	background: color-mix(in srgb, var(--primary-bg) 70%, transparent);
-	backdrop-filter: blur(20px);
-	-webkit-backdrop-filter: blur(20px);
 }
 .commandFront {
 	user-select: none !important;
@@ -4508,7 +4503,7 @@ button.loading::after {
 		padding-right: 12px;
 	}
 	#realbox {
-		padding-bottom: calc(28px + env(safe-area-inset-bottom, 0px));
+		padding-bottom: 28px;
 	}
 	#replybox {
 		margin-left: 12px;
