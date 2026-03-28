@@ -265,7 +265,6 @@ body {
 #chatArea {
 	display: flex;
 	min-width: 40%;
-	position: relative;
 }
 .flexttb {
 	min-width: 0;
@@ -2367,7 +2366,7 @@ span.instanceStatus {
 }
 .scroller {
 	flex: 1;
-	padding-bottom: 80px;
+	padding-bottom: 22px;
 	overflow-y: auto;
 	flex-grow: 1;
 	display: flex;
@@ -5197,9 +5196,5 @@ body:has(#loading.loading) #quick-bubbles {
 }
 
 #typediv {
-	position: absolute;
-	bottom: 0;
-	left: 0;
-	right: 0;
 	z-index: 2;
 }
