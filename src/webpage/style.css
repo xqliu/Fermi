@@ -15,7 +15,7 @@ body {
 	-webkit-text-size-adjust: 100%;
 }
 #page {
-	height: 100svh;
+	height: 100dvh;
 	background: var(--primary-bg);
 	overscroll-behavior: none;
 }
@@ -4416,7 +4416,7 @@ button.loading::after {
 	.channelflex,
 	#mainarea {
 		position: absolute;
-		height: 100svh;
+		height: 100dvh;
 	}
 	.channelflex {
 		left: 64px;
