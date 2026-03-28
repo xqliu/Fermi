@@ -3,10 +3,14 @@ html {
 	overflow: hidden;
 	overscroll-behavior: none;
 	height: 100%;
+	position: fixed;
+	width: 100%;
 }
 body {
 	height: 100%;
 	margin: 0;
+	position: fixed;
+	width: 100%;
 	background: var(--secondary-bg);
 	font-family: var(--font), "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", "Twemoji Mozilla", sans-serif;
 	color: var(--primary-text);

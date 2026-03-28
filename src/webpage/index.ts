@@ -113,14 +113,6 @@ import "./oauth2/auth.js";
 import "./audio/page.js";
 import "./404.js";
 
-// iOS PWA: keyboard dismiss leaves blank space.
-if (/iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.userAgent.includes("Mac") && "ontouchend" in document)) {
-	document.addEventListener("focusout", () => {
-		setTimeout(() => {
-			window.scrollTo(0, 0);
-		}, 100);
-	});
-}
 
 let _forceChannelsInit = false;
 if (window.location.pathname === "/app" || window.location.pathname === "/") {
