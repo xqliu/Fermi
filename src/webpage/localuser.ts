@@ -2470,9 +2470,13 @@ class Localuser {
 			let pinChannel: any = null;
 			let pinUser: any = null;
 			for (const [, ch] of this.channelids) {
+				if (ch.guild?.id === "@me") {
+					console.log(`[pin-debug] DM channel: name="${ch.name}" type=${(ch as any).type} users=${(ch as any).users?.length ?? 'none'} looking for "${pinName}"`);
+				}
 				if (ch.guild?.id === "@me" && ch.name === pinName) {
 					pinChannel = ch;
 					pinUser = (ch as any).users?.[0];
+					console.log(`[pin-debug] MATCH! pinUser=${pinUser ? pinUser.username + ' avatar=' + pinUser.avatar : 'null'}`);
 					break;
 				}
 			}
