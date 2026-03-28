@@ -114,6 +114,22 @@ import "./audio/page.js";
 import "./404.js";
 
 
+// iPad: keyboard dismiss button doesn't blur input, so viewport stays offset.
+// Detect keyboard close via visualViewport resize and force scroll reset.
+if (window.visualViewport) {
+	let lastVpHeight = window.visualViewport.height;
+	window.visualViewport.addEventListener("resize", () => {
+		const h = window.visualViewport!.height;
+		if (h > lastVpHeight + 50) {
+			// Viewport grew significantly = keyboard closed
+			window.scrollTo(0, 0);
+			document.documentElement.scrollTop = 0;
+			document.body.scrollTop = 0;
+		}
+		lastVpHeight = h;
+	});
+}
+
 let _forceChannelsInit = false;
 if (window.location.pathname === "/app" || window.location.pathname === "/") {
 	// iOS PWA: replaceState may not update window.location.pathname synchronously.
