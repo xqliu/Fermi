@@ -2537,8 +2537,10 @@ span.instanceStatus {
 }
 #typing {
 	position: absolute;
-	bottom: 7px;
+	bottom: 100%;
+	left: 0;
 	margin-left: 24px;
+	margin-bottom: 2px;
 	font-size: 0.9em;
 	gap: 4px;
 }
