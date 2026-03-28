@@ -2470,13 +2470,9 @@ class Localuser {
 			let pinChannel: any = null;
 			let pinUser: any = null;
 			for (const [, ch] of this.channelids) {
-				if (ch.guild?.id === "@me") {
-					console.log(`[pin-debug] DM channel: name="${ch.name}" type=${(ch as any).type} users=${(ch as any).users?.length ?? 'none'} looking for "${pinName}"`);
-				}
 				if (ch.guild?.id === "@me" && ch.name === pinName) {
 					pinChannel = ch;
 					pinUser = (ch as any).users?.[0];
-					console.log(`[pin-debug] MATCH! pinUser=${pinUser ? pinUser.username + ' avatar=' + pinUser.avatar : 'null'}`);
 					break;
 				}
 			}
@@ -2485,7 +2481,22 @@ class Localuser {
 			pinBtn.dataset.pinnedDmName = pinName;
 			const pinImg = document.createElement("img");
 			pinImg.classList.add("pfp", "servericon");
-			pinImg.src = pinUser ? pinUser.getpfpsrc() : this.info.cdn + "/embed/avatars/0.png";
+			if (pinUser) {
+				pinImg.src = pinUser.getpfpsrc();
+			} else {
+				// Channel found but users not loaded yet - fetch avatar from API
+				pinImg.src = this.info.cdn + "/embed/avatars/0.png";
+				if (pinChannel) {
+					fetch(this.info.api + `/channels/${pinChannel.id}`, {headers: this.headers})
+						.then(r => r.json())
+						.then(json => {
+							const recip = json.recipients?.find((r: any) => r.username === pinName);
+							if (recip?.avatar) {
+								pinImg.src = `${this.info.cdn}/avatars/${recip.id}/${recip.avatar}`;
+							}
+						}).catch(() => {});
+				}
+			}
 			pinBtn.appendChild(pinImg);
 			const pinHover = new Hover(pinName, {side: "right", weak: true});
 			pinHover.addEvent(pinImg);
