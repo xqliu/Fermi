@@ -15,15 +15,14 @@ COMMIT_UNIX=$(git show -s --format=%ct HEAD)
 COMMIT_MSG=$(git show -s --format=%s HEAD)
 COMMIT_ISO=$(date -u -d "@$COMMIT_UNIX" +"%Y-%m-%dT%H:%M:%SZ")
 
-python3 - <<PY > /var/www/fermi/version.json
-import json
-print(json.dumps({
-  "hash": "${FULL_HASH}",
-  "short": "${SHORT_HASH}",
-  "committedAt": "${COMMIT_ISO}",
-  "message": """${COMMIT_MSG}"""
-}, ensure_ascii=False))
-PY
+python3 -c "
+import json, subprocess, sys
+h='${FULL_HASH}'
+s='${SHORT_HASH}'
+t='${COMMIT_ISO}'
+m=subprocess.check_output(['git','show','-s','--format=%s','HEAD']).decode().strip()
+print(json.dumps({'hash':h,'short':s,'committedAt':t,'message':m},ensure_ascii=False))
+" > /var/www/fermi/version.json
 
 VERSION=$(cat /var/www/fermi/getupdates | head -c 8)
 echo "Deployed: $VERSION"

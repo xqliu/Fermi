@@ -2,7 +2,9 @@
  * Pinned DM users shown as shortcuts in the server sidebar.
  * Edit this array to add/remove pinned users.
  */
-const PINNED_DM_USERS: string[] = ["Lucky"];
+const PINNED_DM_USERS: {name: string, id: string, avatar?: string}[] = [
+	{name: "Lucky", id: "1469391000983101480", avatar: "b2fde4cb284902788fe4278789de063c"},
+];
 
 export const FAVICON_DEFAULT_SRC = "/avatars/1469391000983101480/b2fde4cb284902788fe4278789de063c.png?size=64";
 
@@ -2466,39 +2468,28 @@ class Localuser {
 			guild.loadChannel();
 		};
 		// Pinned DM shortcuts (configurable)
-		for (const pinName of PINNED_DM_USERS) {
+		for (const pin of PINNED_DM_USERS) {
 			let pinChannel: any = null;
-			let pinUser: any = null;
 			for (const [, ch] of this.channelids) {
-				if (ch.guild?.id === "@me" && ch.name === pinName) {
-					pinChannel = ch;
-					pinUser = (ch as any).users?.[0];
-					break;
+				if (ch.guild?.id === "@me") {
+					const users = (ch as any).users as any[] | undefined;
+					if (users?.some((u: any) => u.id === pin.id) || ch.name === pin.name) {
+						pinChannel = ch;
+						break;
+					}
 				}
 			}
 			const pinBtn = document.createElement("div");
 			pinBtn.classList.add("servernoti", "pinned-dm-icon");
-			pinBtn.dataset.pinnedDmName = pinName;
+			pinBtn.dataset.pinnedDmName = pin.name;
 			const pinImg = document.createElement("img");
 			pinImg.classList.add("pfp", "servericon");
-			if (pinUser) {
-				pinImg.src = pinUser.getpfpsrc();
-			} else {
-				// Channel found but users not loaded yet - fetch avatar from API
-				pinImg.src = this.info.cdn + "/embed/avatars/0.png";
-				if (pinChannel) {
-					fetch(this.info.api + `/channels/${pinChannel.id}`, {headers: this.headers})
-						.then(r => r.json())
-						.then(json => {
-							const recip = json.recipients?.find((r: any) => r.username === pinName);
-							if (recip?.avatar) {
-								pinImg.src = `${this.info.cdn}/avatars/${recip.id}/${recip.avatar}`;
-							}
-						}).catch(() => {});
-				}
-			}
+			// Use known avatar directly, fallback to default
+			pinImg.src = pin.avatar
+				? `${this.info.cdn}/avatars/${pin.id}/${pin.avatar}`
+				: this.info.cdn + "/embed/avatars/0.png";
 			pinBtn.appendChild(pinImg);
-			const pinHover = new Hover(pinName, {side: "right", weak: true});
+			const pinHover = new Hover(pin.name, {side: "right", weak: true});
 			pinHover.addEvent(pinImg);
 			pinImg.onclick = () => {
 				const direct = this.guildids.get("@me") as Direct;

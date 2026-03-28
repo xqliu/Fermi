@@ -113,14 +113,27 @@ import "./oauth2/auth.js";
 import "./audio/page.js";
 import "./404.js";
 
-// iOS PWA: keyboard dismiss leaves blank space because the webview
-// scrolls down but doesn't scroll back. Force scroll reset on blur.
+// iOS PWA: keyboard dismiss leaves blank space.
+// Force layout recalc by toggling page height.
 if (/iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.userAgent.includes("Mac") && "ontouchend" in document)) {
-	document.addEventListener("focusout", () => {
-		setTimeout(() => {
-			window.scrollTo(0, 0);
-		}, 50);
-	});
+	const fixViewport = () => {
+		window.scrollTo(0, 0);
+		document.body.scrollTop = 0;
+		const page = document.getElementById("page");
+		if (page) {
+			page.style.height = "100vh";
+			requestAnimationFrame(() => { page.style.height = "100svh"; });
+		}
+	};
+	document.addEventListener("focusout", () => setTimeout(fixViewport, 100));
+	if (window.visualViewport) {
+		window.visualViewport.addEventListener("resize", () => {
+			// Only fix when viewport grows back (keyboard closing)
+			if (window.visualViewport!.height >= window.innerHeight * 0.9) {
+				setTimeout(fixViewport, 100);
+			}
+		});
+	}
 }
 
 let _forceChannelsInit = false;
