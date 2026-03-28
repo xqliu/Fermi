@@ -113,6 +113,16 @@ import "./oauth2/auth.js";
 import "./audio/page.js";
 import "./404.js";
 
+// iOS PWA: keyboard dismiss leaves blank space because the webview
+// scrolls down but doesn't scroll back. Force scroll reset on blur.
+if (/iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.userAgent.includes("Mac") && "ontouchend" in document)) {
+	document.addEventListener("focusout", () => {
+		setTimeout(() => {
+			window.scrollTo(0, 0);
+		}, 50);
+	});
+}
+
 let _forceChannelsInit = false;
 if (window.location.pathname === "/app" || window.location.pathname === "/") {
 	// iOS PWA: replaceState may not update window.location.pathname synchronously.
