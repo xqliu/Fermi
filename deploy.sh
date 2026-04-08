@@ -21,7 +21,7 @@ echo "Building..."
 npm run build 2>&1 | tail -3
 
 echo "Deploying..."
-rsync -a --delete dist/webpage/ "$DEPLOY_DIR"/
+sudo rsync -a --delete dist/webpage/ "$DEPLOY_DIR"/
 
 FULL_HASH=$(git rev-parse HEAD)
 SHORT_HASH=$(git rev-parse --short=8 HEAD)
@@ -36,16 +36,16 @@ s='${SHORT_HASH}'
 t='${COMMIT_ISO}'
 m=subprocess.check_output(['git','show','-s','--format=%s','HEAD']).decode().strip()
 print(json.dumps({'hash':h,'short':s,'committedAt':t,'message':m},ensure_ascii=False))
-" > "$DEPLOY_DIR"/version.json
+" | sudo tee "$DEPLOY_DIR"/version.json >/dev/null
 
 copy_asset() {
   local backup_name="$1"
   local dist_name="$2"
   local dest_name="${3:-$dist_name}"
   if [[ -f "$ASSETS_DIR/$backup_name" ]]; then
-    cp "$ASSETS_DIR/$backup_name" "$DEPLOY_DIR/$dest_name"
+    sudo cp "$ASSETS_DIR/$backup_name" "$DEPLOY_DIR/$dest_name"
   elif [[ -f "dist/webpage/$dist_name" ]]; then
-    cp "dist/webpage/$dist_name" "$DEPLOY_DIR/$dest_name"
+    sudo cp "dist/webpage/$dist_name" "$DEPLOY_DIR/$dest_name"
   else
     echo "WARNING: missing asset $backup_name / $dist_name"
   fi
@@ -54,16 +54,16 @@ copy_asset() {
 copy_asset "logo.webp" "logo.webp"
 copy_asset "favicon.ico" "favicon.ico"
 if [[ -f "$ASSETS_DIR/logo-192.webp" ]]; then
-  cp "$ASSETS_DIR/logo-192.webp" "$DEPLOY_DIR/logo-192.webp"
+  sudo cp "$ASSETS_DIR/logo-192.webp" "$DEPLOY_DIR/logo-192.webp"
 elif [[ -f "dist/webpage/logo-192.webp" ]]; then
-  cp "dist/webpage/logo-192.webp" "$DEPLOY_DIR/logo-192.webp"
+  sudo cp "dist/webpage/logo-192.webp" "$DEPLOY_DIR/logo-192.webp"
 elif [[ -f "$DEPLOY_DIR/logo.webp" ]]; then
-  cp "$DEPLOY_DIR/logo.webp" "$DEPLOY_DIR/logo-192.webp"
+  sudo cp "$DEPLOY_DIR/logo.webp" "$DEPLOY_DIR/logo-192.webp"
 else
   echo "WARNING: missing logo-192.webp fallback"
 fi
 
-python3 -c "
+sudo python3 -c "
 import json
 with open('$DEPLOY_DIR/manifest.json') as f:
     m = json.load(f)
