@@ -199,11 +199,22 @@ function toPath(url: string): string {
 function isDocumentRequest(req: Request) {
 	return req.mode === "navigate" || req.destination === "document" || req.headers.get("accept")?.includes("text/html");
 }
+function hasFileExtension(path: string) {
+	return /\/[^/]+\.[^/]+$/.test(path);
+}
 async function getCachedNavigationFallback(req: Request) {
+	const url = new URL(req.url);
 	const paths = new Set<string>();
 	const specific = toPathNoDefault(req.url);
 	if (specific) {
 		paths.add(specific);
+	}
+	if (url.pathname === "/") {
+		paths.add("/index.html");
+	}
+	if (!hasFileExtension(url.pathname) && url.pathname !== "/") {
+		paths.add(`${url.pathname}.html`);
+		paths.add(`${url.pathname}/index.html`);
 	}
 	paths.add("/app.html");
 	for (const path of paths) {
