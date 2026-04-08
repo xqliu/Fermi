@@ -120,6 +120,7 @@ class Localuser {
 	errorBackoff = 0;
 	private reconnectTimeout: ReturnType<typeof setTimeout> | undefined;
 	private reconnectCountdown: ReturnType<typeof setInterval> | undefined;
+	private reconnectBannerDelayTimeout: ReturnType<typeof setTimeout> | undefined;
 	private _livenessInterval: ReturnType<typeof setInterval> | undefined;
 
 	quickSwitcher: QuickSwitcher | undefined;
@@ -128,6 +129,7 @@ class Localuser {
 	private _networkListenersActive = false;
 	private _reconnecting = false;
 	private _reconnectingSince = 0;
+	private _reconnectBannerSince = 0;
 	private _resumedSuccessfully = false;
 	// correctness: force exactly one message backfill after full reconnect
 	needsBackfillOnce = false;
@@ -188,11 +190,53 @@ class Localuser {
 			}
 		}, 5000); // Check every 5s instead of 15s for faster detection
 	}
+	private _updateReconnectBannerText() {
+		const reconnectText = document.getElementById("reconnect-text") as HTMLElement | null;
+		if (!reconnectText) return;
+		const elapsed = this._reconnectBannerSince ? Date.now() - this._reconnectBannerSince : 0;
+		if (elapsed >= 30000) {
+			reconnectText.textContent = "当前离线，仅可查看本地缓存";
+		} else if (elapsed >= 10000) {
+			reconnectText.textContent = "已离线，正在重连...";
+		} else {
+			reconnectText.textContent = "正在重新连接...";
+		}
+	}
+	private _startReconnectBanner() {
+		if (!this._reconnectBannerSince) {
+			this._reconnectBannerSince = Date.now();
+		}
+		const reconnectBanner = document.getElementById("reconnect-banner") as HTMLElement | null;
+		if (!reconnectBanner) return;
+		if (this.reconnectBannerDelayTimeout) {
+			clearTimeout(this.reconnectBannerDelayTimeout);
+		}
+		if (this.reconnectCountdown) {
+			clearInterval(this.reconnectCountdown);
+		}
+		this._updateReconnectBannerText();
+		this.reconnectBannerDelayTimeout = setTimeout(() => {
+			this._updateReconnectBannerText();
+			reconnectBanner.classList.add("visible");
+		}, 2000);
+		this.reconnectCountdown = setInterval(() => {
+			this._updateReconnectBannerText();
+		}, 1000);
+	}
+	private _stopReconnectBanner() {
+		if (this.reconnectBannerDelayTimeout) {
+			clearTimeout(this.reconnectBannerDelayTimeout);
+			this.reconnectBannerDelayTimeout = undefined;
+		}
+		if (this.reconnectCountdown) {
+			clearInterval(this.reconnectCountdown);
+			this.reconnectCountdown = undefined;
+		}
+		this._reconnectBannerSince = 0;
+		(document.getElementById("reconnect-banner") as HTMLElement | null)?.classList.remove("visible");
+	}
 	private _checkAndReconnect() {
 		console.log(`[reconnect] _checkAndReconnect: ws=${this.ws ? 'exists' : 'null'}, readyState=${this.ws?.readyState}, _reconnecting=${this._reconnecting}`);
-		// Debug: show reconnect state on screen (temporary)
-		const banner = document.getElementById("reconnect-text");
-		if (banner) banner.textContent = `重连中... (ws=${this.ws ? this.ws.readyState : 'null'}, reconn=${this._reconnecting})`;
 		if (this._reconnecting) return;
 		// If WS appears OPEN, probe it with a heartbeat + 5s timeout
 		if (this.ws && this.ws.readyState === WebSocket.OPEN) {
@@ -246,7 +290,7 @@ class Localuser {
 							console.error("[_checkAndReconnect] init() failed:", e);
 						}
 					}
-					(document.getElementById("reconnect-banner") as HTMLElement)?.classList.remove("visible");
+					this._stopReconnectBanner();
 					// Also dismiss initial loading screen if still visible (e.g. iOS PWA resume)
 					const loading = document.getElementById("loading") as HTMLElement;
 					if (loading) {
@@ -265,7 +309,7 @@ class Localuser {
 						this.outoffocus();
 						await this.init();
 						console.log("[_checkAndReconnect] init() complete, UI rebuilt");
-						(document.getElementById("reconnect-banner") as HTMLElement)?.classList.remove("visible");
+						this._stopReconnectBanner();
 						const loading = document.getElementById("loading") as HTMLElement;
 						if (loading) {
 							loading.classList.add("doneloading");
@@ -273,11 +317,7 @@ class Localuser {
 						}
 					}).catch((e2) => {
 						console.error("[_checkAndReconnect] fresh identify also failed", e2);
-						// Show banner, let close handler retry
-						const banner = document.getElementById("reconnect-banner") as HTMLElement;
-						const text = document.getElementById("reconnect-text") as HTMLElement;
-						if (banner) banner.classList.add("visible");
-						if (text) text.textContent = "连接失败，10秒后重试...";
+						this._startReconnectBanner();
 						// Auto-retry after 10s (finally will have reset _reconnecting by then)
 						setTimeout(() => this._checkAndReconnect(), 10000);
 					});
@@ -946,13 +986,12 @@ class Localuser {
 				}).catch((e) => {
 					console.error("[ws-close] fast resume FAILED, trying full reconnect", e);
 					this.errorBackoff = 0; // reset so _checkAndReconnect can proceed
+					this._startReconnectBanner();
 					this._checkAndReconnect();
 				});
 				return;
 			}
 			const loaddesc = document.getElementById("load-desc") as HTMLElement;
-			const reconnectBanner = document.getElementById("reconnect-banner") as HTMLElement;
-			const reconnectText = document.getElementById("reconnect-text") as HTMLElement;
 			if (
 				(event.code > 1000 && event.code < 1016) ||
 				wsCodesRetry.has(event.code) ||
@@ -964,26 +1003,13 @@ class Localuser {
 				this.noncebuild.clear();
 				// Clear any pending reconnect from a previous disconnect
 				if (this.reconnectTimeout) clearTimeout(this.reconnectTimeout);
-				if (this.reconnectCountdown) clearInterval(this.reconnectCountdown);
-				reconnectBanner.classList.add("visible");
+				this._startReconnectBanner();
 				if (this.connectionSucceed !== 0 && Date.now() > this.connectionSucceed + 20000) {
 					this.errorBackoff = 0;
 				} else this.errorBackoff++;
 				this.connectionSucceed = 0;
 
 				const delayMs = 200 + this.errorBackoff * 2800;
-				let remaining = Math.ceil(delayMs / 1000);
-				reconnectText.textContent = `正在重新连接... (${remaining}s)`;
-				this.reconnectCountdown = setInterval(() => {
-					remaining--;
-					if (remaining <= 0) {
-						clearInterval(this.reconnectCountdown);
-						this.reconnectCountdown = undefined;
-						reconnectText.textContent = "正在重新连接...";
-					} else {
-						reconnectText.textContent = `正在重新连接... (${remaining}s)`;
-					}
-				}, 1000);
 
 				switch (
 					this.errorBackoff //try to recover from bad domain
@@ -1022,11 +1048,8 @@ class Localuser {
 				}
 				this.reconnectTimeout = setTimeout(
 					() => {
-						clearInterval(this.reconnectCountdown);
-						this.reconnectCountdown = undefined;
 						this.reconnectTimeout = undefined;
 						if (this.swapped) return;
-						reconnectText.textContent = "正在重新连接...";
 						// Try resume first, fall back to identify if rejected
 						const withTimeout = <T>(p: Promise<T>, ms: number): Promise<T> =>
 							Promise.race([p, new Promise<T>((_, rej) => setTimeout(() => rej(new Error("timeout")), ms))]);
@@ -1062,11 +1085,11 @@ class Localuser {
 									console.error("[reconnect] init() failed:", e);
 								}
 							}
-							reconnectBanner.classList.remove("visible");
+							this._stopReconnectBanner();
 							console.log("done reconnecting");
 						}).catch(async (e) => {
 							console.error("[reconnect] failed, retrying in 10s...", e);
-							reconnectText.textContent = "连接失败，10秒后重试...";
+							this._startReconnectBanner();
 							await new Promise((r) => setTimeout(r, 10000));
 							if (this.swapped) return;
 							// Retry reconnect instead of reloading (reload shows loading page)
@@ -1079,8 +1102,7 @@ class Localuser {
 			} else {
 				// Unrecoverable code — show reconnect banner and retry
 				console.error("[ws] unrecoverable close code:", event.code);
-				reconnectBanner.classList.add("visible");
-				reconnectText.textContent = `连接断开 (${event.code})，10秒后重试...`;
+				this._startReconnectBanner();
 				setTimeout(() => {
 					if (this.swapped) return;
 					this._reconnecting = false;
