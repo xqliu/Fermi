@@ -257,6 +257,7 @@ if (_forceChannelsInit || window.location.pathname.startsWith("/channels")) {
 		let _defaultsCfg: any = null;
 		let restoredOffline = false;
 		let onlineRetryRegistered = false;
+		let delayedRetryScheduled = false;
 		// Pre-fetch defaults (fire-and-forget, used after init)
 		fetch("/user-defaults.json").then(r => r.ok ? r.json() : null).then(d => { _defaultsCfg = d; }).catch(() => {});
 		const finishLoading = async (fromCache = false) => {
@@ -312,27 +313,35 @@ if (_forceChannelsInit || window.location.pathname.startsWith("/channels")) {
 			} catch (e) {
 				retryCount++;
 				if (retryCount > 5) {
-					if (restoredOffline) {
-						_debugLog("网络不可用，保持离线缓存，等待在线后重连");
-						loaddesc.textContent = "当前离线，已显示本地缓存";
-						if (!onlineRetryRegistered) {
-							onlineRetryRegistered = true;
-							window.addEventListener(
-								"online",
-								() => {
-									onlineRetryRegistered = false;
-									retryCount = 0;
-									connectWithRetry();
-								},
-								{once: true},
-							);
-						}
-						return;
+					const delayMs = 15000;
+					_debugLog(
+						restoredOffline
+							? "网络不可用，保持离线缓存，等待在线或定时重连"
+							: "启动连接失败，停止 reload 循环，等待在线或定时重连",
+					);
+					loaddesc.textContent = restoredOffline
+						? "当前离线，已显示本地缓存"
+						: `连接失败，${Math.round(delayMs / 1000)}秒后重试...`;
+					if (!onlineRetryRegistered) {
+						onlineRetryRegistered = true;
+						window.addEventListener(
+							"online",
+							() => {
+								onlineRetryRegistered = false;
+								retryCount = 0;
+								connectWithRetry();
+							},
+							{once: true},
+						);
 					}
-					// Mimic kill+reopen: clear session state and do a full reload
-					console.error("[init] 5 retries failed, clearing session and reloading");
-					sessionStorage.clear();
-					safeReload();
+					if (!delayedRetryScheduled) {
+						delayedRetryScheduled = true;
+						setTimeout(() => {
+							delayedRetryScheduled = false;
+							retryCount = 0;
+							connectWithRetry();
+						}, delayMs);
+					}
 					return;
 				}
 				const delay = Math.min(3000 * retryCount, 10000);
