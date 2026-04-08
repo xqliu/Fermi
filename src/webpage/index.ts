@@ -78,15 +78,7 @@ let _lastActiveTime = Date.now();
 if ("serviceWorker" in navigator) {
 	navigator.serviceWorker.addEventListener("message", async (event) => {
 		if (event.data?.code === "newVersion" && event.data.version !== FERMI_VERSION) {
-			console.log(`[update] New version ${event.data.version}, current ${FERMI_VERSION}, clearing cache and reloading`);
-			try {
-				const regs = await navigator.serviceWorker.getRegistrations();
-				for (const r of regs) await r.unregister();
-				const keys = await caches.keys();
-				for (const k of keys) await caches.delete(k);
-			} catch (e) {
-				console.error("[update] cache clear failed:", e);
-			}
+			console.log(`[update] New version ${event.data.version}, current ${FERMI_VERSION}, reloading`);
 			window.location.reload();
 		}
 	});
@@ -263,22 +255,24 @@ if (_forceChannelsInit || window.location.pathname.startsWith("/channels")) {
 		regSwap(thisUser);
 		loaddesc.textContent = "正在连接服务器...";
 		let _defaultsCfg: any = null;
+		let restoredOffline = false;
+		let onlineRetryRegistered = false;
 		// Pre-fetch defaults (fire-and-forget, used after init)
 		fetch("/user-defaults.json").then(r => r.ok ? r.json() : null).then(d => { _defaultsCfg = d; }).catch(() => {});
-		const finishLoading = async () => {
-			loaddesc.textContent = "正在加载频道...";
+		const finishLoading = async (fromCache = false) => {
+			loaddesc.textContent = fromCache ? "正在加载本地缓存..." : "正在加载频道...";
 			thisUser.loaduser();
 			await thisUser.init();
 			const loading = document.getElementById("loading") as HTMLDivElement;
 			loading.classList.add("doneloading");
 			loading.classList.remove("loading");
-			loaddesc.textContent = I18n.loaded();
-			console.log("done loading");
+			loaddesc.textContent = fromCache ? "本地缓存已加载" : I18n.loaded();
+			console.log(fromCache ? "loaded from cache" : "done loading");
 			if (templateID) {
 				thisUser.passTemplateID(templateID);
 			}
 			// Navigate to per-user default guild/channel after init
-			if (window.location.pathname === "/channels/@me" && _defaultsCfg) {
+			if (!fromCache && window.location.pathname === "/channels/@me" && _defaultsCfg) {
 				const userId = thisUser.user?.id;
 				const dest = (userId && _defaultsCfg.perUser?.[userId]) || _defaultsCfg.fallback;
 				if (dest?.guild && dest?.channel) {
@@ -294,8 +288,15 @@ if (_forceChannelsInit || window.location.pathname.startsWith("/channels")) {
 				const toggle = document.getElementById("maintoggle") as HTMLInputElement | null;
 				if (toggle) toggle.checked = true;
 			}
-			thisUser.subscribePush().catch((e: any) => console.warn("[push] subscribe failed:", e));
+			if (!fromCache) {
+				thisUser.subscribePush().catch((e: any) => console.warn("[push] subscribe failed:", e));
+			}
 		};
+		restoredOffline = await thisUser.restoreOfflineReady();
+		if (restoredOffline) {
+			_debugLog("已恢复本地缓存，先显示本地数据");
+			await finishLoading(true);
+		}
 		let retryCount = 0;
 		const connectWithRetry = async () => {
 			try {
@@ -311,6 +312,23 @@ if (_forceChannelsInit || window.location.pathname.startsWith("/channels")) {
 			} catch (e) {
 				retryCount++;
 				if (retryCount > 5) {
+					if (restoredOffline) {
+						_debugLog("网络不可用，保持离线缓存，等待在线后重连");
+						loaddesc.textContent = "当前离线，已显示本地缓存";
+						if (!onlineRetryRegistered) {
+							onlineRetryRegistered = true;
+							window.addEventListener(
+								"online",
+								() => {
+									onlineRetryRegistered = false;
+									retryCount = 0;
+									connectWithRetry();
+								},
+								{once: true},
+							);
+						}
+						return;
+					}
 					// Mimic kill+reopen: clear session state and do a full reload
 					console.error("[init] 5 retries failed, clearing session and reloading");
 					sessionStorage.clear();

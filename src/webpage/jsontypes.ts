@@ -881,6 +881,16 @@ type wsjson =
 	  }
 	| {
 			op: 0;
+			d: {
+				ids: string[];
+				guild_id?: string;
+				channel_id: string;
+			};
+			s: number;
+			t: "MESSAGE_DELETE_BULK";
+	  }
+	| {
+			op: 0;
 			t: "THREAD_MEMBERS_UPDATE";
 			d: {
 				guild_id: string;

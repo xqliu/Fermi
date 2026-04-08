@@ -3,6 +3,18 @@ set -e
 
 cd /home/xqianliu/Fermi
 
+if ! git diff --quiet -- src/; then
+  echo "Refusing to deploy: src/ has uncommitted changes."
+  echo "Commit the changes first so getupdates/version.json match the deployed code."
+  exit 1
+fi
+
+if ! git diff --cached --quiet -- src/; then
+  echo "Refusing to deploy: src/ has staged but uncommitted changes."
+  echo "Commit the changes first so getupdates/version.json match the deployed code."
+  exit 1
+fi
+
 echo "Building..."
 npm run build 2>&1 | tail -3
 

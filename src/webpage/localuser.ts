@@ -55,6 +55,13 @@ import {
 } from "./utils/storage/userPreferences";
 import {getDeveloperSettings, setDeveloperSettings} from "./utils/storage/devSettings";
 import {getLocalSettings, ServiceWorkerModeValues} from "./utils/storage/localSettings.js";
+import {
+	deleteCachedMessage,
+	getOfflineScope,
+	loadOfflineReady,
+	saveOfflineReady,
+	upsertCachedMessage,
+} from "./utils/storage/offlineCache.js";
 import {PromiseLock} from "./utils/promiseLock.js";
 type traceObj = {
 	micros: number;
@@ -88,6 +95,9 @@ class Localuser {
 	serverurls!: Specialuser["serverurls"];
 	initialized!: boolean;
 	info!: Specialuser["serverurls"];
+	get offlineScope() {
+		return getOfflineScope(this.userinfo.uid);
+	}
 	headers!: {"Content-type": string; Authorization: string};
 	ready!: readyjson;
 	guilds!: Guild[];
@@ -576,12 +586,16 @@ class Localuser {
 	}
 	guildFolders: guildFolder[] = [];
 	unknownRead = new Map<string, readStateEntry>();
-	async gottenReady(ready: readyjson): Promise<void> {
+	private async applyReadyState(ready: readyjson, fromCache = false): Promise<void> {
 		this._resumedSuccessfully = false; // READY means full reconnect, not resume
-		// Re-register push subscription on every WS reconnect.
-		// iOS kills the Service Worker in background, invalidating the push endpoint.
-		// Without re-subscribing, notifications stop until user manually kills the PWA.
-		this.subscribePush().catch((e: any) => console.warn("[push] re-subscribe on READY failed:", e));
+		if (!fromCache) {
+			// Re-register push subscription on every WS reconnect.
+			// iOS kills the Service Worker in background, invalidating the push endpoint.
+			// Without re-subscribing, notifications stop until user manually kills the PWA.
+			this.subscribePush().catch((e: any) =>
+				console.warn("[push] re-subscribe on READY failed:", e),
+			);
+		}
 		await I18n.done;
 		this.errorBackoff = 0;
 		this.channelids.clear();
@@ -671,9 +685,37 @@ class Localuser {
 			user.handleRelationship(relationship);
 		}
 
-		this.pingEndpoint();
+		if (fromCache) {
+			const userInfo = getBulkInfo();
+			const instance = userInfo.instances?.[this.info.wellknown];
+			if (instance) {
+				this.instancePing = instance.instance;
+				this.pageTitle("Loading...");
+			}
+		} else {
+			this.pingEndpoint();
+		}
 
 		this.generateFavicon();
+	}
+	async gottenReady(ready: readyjson): Promise<void> {
+		await this.applyReadyState(ready);
+		try {
+			await saveOfflineReady(this.offlineScope, ready);
+		} catch (error) {
+			console.warn("[offline] failed to persist ready snapshot", error);
+		}
+	}
+	async restoreOfflineReady(): Promise<boolean> {
+		try {
+			const ready = await loadOfflineReady(this.offlineScope);
+			if (!ready) return false;
+			await this.applyReadyState(ready, true);
+			return true;
+		} catch (error) {
+			console.warn("[offline] failed to restore ready snapshot", error);
+			return false;
+		}
 	}
 	inrelation = new Set<User>();
 	// Saved typebox content across reconnects
@@ -1128,6 +1170,22 @@ class Localuser {
 					const message = channel.messages.get(temp.d.id);
 					if (!message) break;
 					message.deleteEvent();
+					deleteCachedMessage(this.offlineScope, temp.d.channel_id, temp.d.id).catch((error) => {
+						console.warn("[offline] failed to delete cached message", error);
+					});
+					break;
+				}
+				case "MESSAGE_DELETE_BULK": {
+					temp.d.guild_id ??= "@me";
+					const channel = this.channelids.get(temp.d.channel_id);
+					if (!channel) break;
+					for (const id of temp.d.ids) {
+						const message = channel.messages.get(id);
+						message?.deleteEvent();
+						deleteCachedMessage(this.offlineScope, temp.d.channel_id, id).catch((error) => {
+							console.warn("[offline] failed to delete cached message", error);
+						});
+					}
 					break;
 				}
 				case "RESUMED":
@@ -1144,6 +1202,11 @@ class Localuser {
 					const message = channel.messages.get(temp.d.id);
 					if (!message) break;
 					message.giveData(temp.d);
+					upsertCachedMessage(this.offlineScope, temp.d.channel_id, temp.d as messagejson).catch(
+						(error) => {
+							console.warn("[offline] failed to update cached message", error);
+						},
+					);
 					break;
 				}
 				case "TYPING_START":
@@ -2727,6 +2790,11 @@ class Localuser {
 			channel.messageCreate(messagep);
 			this.unreads();
 			this.quickSwitcher?.push(channel);
+			upsertCachedMessage(this.offlineScope, messagep.d.channel_id, messagep.d as messagejson).catch(
+				(error) => {
+					console.warn("[offline] failed to persist new message", error);
+				},
+			);
 		}
 	}
 	unreads(): void {

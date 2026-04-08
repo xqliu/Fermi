@@ -35,6 +35,7 @@ import {Direct} from "./direct.js";
 import {NotificationHandler} from "./notificationHandler.js";
 import {Command} from "./interactions/commands.js";
 import {Tag} from "./tag.js";
+import {getChannelMessages, saveChannelMessages} from "./utils/storage/offlineCache.js";
 
 class Channel extends SnowFlake {
 	editing!: Message | null;
@@ -2749,17 +2750,40 @@ class Channel extends SnowFlake {
 		if (!mobile) {
 			(document.getElementById("typebox") as HTMLDivElement).focus();
 		}
-		// Fetch messages BEFORE clearing old ones — reduces blank flash
-		if (getMessages) await this.putmessages();
 		if (id !== Channel.genid) {
 			return;
 		}
-		// Now clear old messages and build new ones in quick succession
+		let renderedFromCache = false;
+		let needsRebuild = Boolean(getMessages);
+		if (getMessages) {
+			renderedFromCache = await this.restoreCachedMessages();
+			if (id !== Channel.genid) {
+				return;
+			}
+			if (renderedFromCache) {
+				await this.infinite.delete();
+				this.makereplybox();
+				await this.buildmessages(aroundMessage);
+				needsRebuild = false;
+			}
+			try {
+				needsRebuild = (await this.putmessages(renderedFromCache)) || needsRebuild;
+			} catch (error) {
+				console.warn("[offline] failed to refresh messages from network", error);
+			}
+			if (id !== Channel.genid) {
+				return;
+			}
+			if (renderedFromCache && !needsRebuild) {
+				if (this.localuser.needsBackfillOnce) this.localuser.needsBackfillOnce = false;
+				return;
+			}
+		}
 		const prom = this.infinite.delete();
 		await prom;
 		this.makereplybox();
 
-		if (getMessages) await this.buildmessages(aroundMessage);
+		if (needsRebuild) await this.buildmessages(aroundMessage);
 		if (this.localuser.needsBackfillOnce) this.localuser.needsBackfillOnce = false;
 		//loading.classList.remove("loading");
 	}
@@ -2892,13 +2916,13 @@ class Channel extends SnowFlake {
 		});
 		notiselect.show();
 	}
-	async putmessages(force = false) {
+	async putmessages(force = false): Promise<boolean> {
 		//TODO swap out with the WS op code
 		if (!force && this.allthewayup) {
-			return;
+			return false;
 		}
 		if (!force && this.lastreadmessageid && this.messages.has(this.lastreadmessageid)) {
-			return;
+			return false;
 		}
 		const j = await fetch(this.info.api + "/channels/" + this.id + "/messages?limit=100&_=" + Date.now(), {
 			headers: this.headers,
@@ -2906,12 +2930,53 @@ class Channel extends SnowFlake {
 		});
 
 		const response = (await j.json()) as messagejson[];
-		if (response.length !== 100) {
+		const changed =
+			this.buildBatchSignature(this.getCurrentBatch(response.length)) !==
+			this.buildBatchSignature(response);
+		this.applyMessageBatch(response, response.length !== 100);
+		try {
+			await saveChannelMessages(
+				this.localuser.offlineScope,
+				this.id,
+				response,
+				response.length !== 100,
+			);
+		} catch (error) {
+			console.warn("[offline] failed to persist channel messages", error);
+		}
+		await this.slowmode();
+		return changed;
+	}
+	private getCurrentBatch(limit: number): {id: string; edited_timestamp?: string | null}[] {
+		const batch: {id: string; edited_timestamp?: string | null}[] = [];
+		let currentId = this.lastmessageid;
+		while (currentId && batch.length < limit) {
+			const message = this.messages.get(currentId);
+			if (!message) {
+				break;
+			}
+			batch.push({
+				id: message.id,
+				edited_timestamp: message.edited_timestamp,
+			});
+			currentId = this.idToPrev.get(currentId);
+		}
+		return batch;
+	}
+	private buildBatchSignature(messages: {id: string; edited_timestamp?: string | null}[]): string {
+		return messages.map((message) => `${message.id}:${message.edited_timestamp || ""}`).join(",");
+	}
+	private applyMessageBatch(response: messagejson[], allTheWayUp = false) {
+		if (allTheWayUp) {
 			this.allthewayup = true;
 		}
 		let prev: Message | undefined;
 		for (const thing of response) {
-			const message = new Message(thing, this);
+			const existing = this.messages.get(thing.id);
+			const message = existing || new Message(thing, this);
+			if (existing) {
+				existing.giveData(thing);
+			}
 			if (prev) {
 				this.idToNext.set(message.id, prev.id);
 				this.idToPrev.set(prev.id, message.id);
@@ -2925,7 +2990,20 @@ class Channel extends SnowFlake {
 			this.lastmessageid = undefined;
 			this.lastreadmessageid = undefined;
 		}
-		await this.slowmode();
+	}
+	async restoreCachedMessages(): Promise<boolean> {
+		try {
+			const cached = await getChannelMessages(this.localuser.offlineScope, this.id);
+			if (!cached.messages.length) {
+				return false;
+			}
+			this.applyMessageBatch(cached.messages, cached.allTheWayUp);
+			await this.slowmode();
+			return true;
+		} catch (error) {
+			console.warn("[offline] failed to restore cached messages", error);
+			return false;
+		}
 	}
 	delChannel(json: channeljson) {
 		const build: Channel[] = [];

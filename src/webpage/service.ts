@@ -3,10 +3,32 @@ import {messageFrom, messageTo} from "./utils/serviceType";
 // __BUILD_VERSION__ is replaced at build time with the git commit hash.
 // This ensures the browser detects service.js has changed and installs the new SW.
 const BUILD_VERSION = "__BUILD_VERSION__";
+const SHELL_CACHE_PREFIX = "cache-";
+const CURRENT_SHELL_CACHE = `${SHELL_CACHE_PREFIX}${BUILD_VERSION}`;
 console.log("[SW] version:", BUILD_VERSION);
 
-async function deleteoldcache() {
-	await caches.delete("cache");
+async function getActiveShellCacheName() {
+	return CURRENT_SHELL_CACHE;
+}
+async function deleteOldShellCaches(keep = CURRENT_SHELL_CACHE) {
+	const keys = await caches.keys();
+	await Promise.all(
+		keys
+			.filter((key) => key.startsWith(SHELL_CACHE_PREFIX) && key !== keep)
+			.map((key) => caches.delete(key)),
+	);
+}
+async function clearAllShellCaches() {
+	const keys = await caches.keys();
+	await Promise.all(
+		keys
+			.filter((key) => key.startsWith(SHELL_CACHE_PREFIX))
+			.map((key) => caches.delete(key)),
+	);
+}
+async function hasCurrentShellCache() {
+	const cache = await caches.open(CURRENT_SHELL_CACHE);
+	return !!(await cache.match("/getupdates"));
 }
 type files = {[key: string]: string | files};
 async function getAllFiles() {
@@ -17,7 +39,7 @@ async function getAllFiles() {
 // Directories that are large and loaded on-demand — skip during precache
 const LAZY_DIRS = new Set(["/emoji"]);
 
-async function cachePath(path: string, json: files) {
+async function cachePath(path: string, json: files, cacheName = CURRENT_SHELL_CACHE) {
 	await Promise.all(
 		Object.entries(json).map(async ([name, thing]) => {
 			if (typeof thing === "string") {
@@ -26,39 +48,39 @@ async function cachePath(path: string, json: files) {
 					return;
 				}
 				const res = await fetch(lpath, { cache: "no-store" });
-				await putInCache(new URL(lpath, self.location.origin), res);
+				await putInCache(new URL(lpath, self.location.origin), res, cacheName);
 			} else {
 				const dirPath = path + "/" + name;
 				if (LAZY_DIRS.has(dirPath)) {
 					console.log("[SW] skipping lazy dir:", dirPath);
 					return;
 				}
-				await cachePath(dirPath, thing);
+				await cachePath(dirPath, thing, cacheName);
 			}
 		}),
 	);
 }
 
-async function downloadAllFiles() {
+async function downloadAllFiles(cacheName = CURRENT_SHELL_CACHE) {
 	const json = await getAllFiles();
-	await cachePath("", json);
+	await cachePath("", json, cacheName);
 }
-async function getFromCache(request: URL) {
+async function getFromCache(request: URL, cacheName?: string) {
 	request = new URL(request, self.location.href);
 	const port = rMap.get(request.host);
 	if (port) {
 		request.search = "";
 	}
-	const cache = await caches.open(port ? "cdn" : "cache");
+	const cache = await caches.open(port ? "cdn" : cacheName || (await getActiveShellCacheName()));
 	return cache.match(request);
 }
-async function putInCache(request: URL | string, response: Response) {
+async function putInCache(request: URL | string, response: Response, cacheName?: string) {
 	request = new URL(request, self.location.href);
 	const port = rMap.get(request.host);
 	if (port) {
 		request.search = "";
 	}
-	const cache = await caches.open(port ? "cdn" : "cache");
+	const cache = await caches.open(port ? "cdn" : cacheName || CURRENT_SHELL_CACHE);
 
 	try {
 		console.log(await cache.put(request, response));
@@ -68,30 +90,28 @@ async function putInCache(request: URL | string, response: Response) {
 }
 
 let lastcache: string;
-self.addEventListener("install", () => {
+self.addEventListener("install", (event: any) => {
 	console.log("[SW] Installing, skip waiting");
+	event.waitUntil(downloadAllFiles(CURRENT_SHELL_CACHE).catch((e) => console.error("[SW] install precache failed:", e)));
 	(self as any).skipWaiting();
 });
 
 self.addEventListener("activate", async (event: any) => {
 	console.log("[SW] Activated, version:", BUILD_VERSION);
 	event.waitUntil((async () => {
-		// Clear all old caches so no stale files remain
-		await caches.delete("cache");
-		// Re-download all files with the new version
 		let downloadOk = false;
 		try {
-			await downloadAllFiles();
+			if (!(await hasCurrentShellCache())) {
+				await downloadAllFiles(CURRENT_SHELL_CACHE);
+			}
 			console.log("[SW] All files re-cached for version", BUILD_VERSION);
 			downloadOk = true;
 		} catch (e) {
 			console.error("[SW] Failed to re-cache files:", e);
-			// Don't notify clients to reload — cache is empty/incomplete
-			// They'll continue with network fetches; checkCache will retry later
 		}
 		await (self as any).clients.claim();
-		// Notify clients about the new version (they decide whether to reload)
 		if (downloadOk) {
+			await deleteOldShellCaches(CURRENT_SHELL_CACHE);
 			const clients = await (self as any).clients.matchAll();
 			for (const client of clients) {
 				client.postMessage({ code: "newVersion", version: BUILD_VERSION });
@@ -119,7 +139,7 @@ async function checkCache() {
 	if (checkedrecently) {
 		return false;
 	}
-	const cache = await caches.open("cache");
+	const cache = await caches.open(await getActiveShellCacheName());
 	const promise = await cache.match("/getupdates");
 	if (promise) {
 		lastcache = await promise.text();
@@ -136,12 +156,9 @@ async function checkCache() {
 		const text = await data.clone().text();
 		console.log(text, lastcache);
 		if (lastcache !== text) {
-			await deleteoldcache();
-			await putInCache("/getupdates", data); // must be awaited before reload
-			lastcache = text; // update in-memory so SW restart loop is avoided
-			await downloadAllFiles(); // files must be fully cached before closing
+			await putInCache("/getupdates", data.clone(), CURRENT_SHELL_CACHE);
+			lastcache = text;
 			checkedrecently = true;
-			// Notify clients BEFORE trying to close, so update icon appears
 			sendAll({
 				code: "updates",
 				updates: true,
@@ -200,7 +217,7 @@ async function getfile(req: Request): Promise<Response> {
 		} catch (e) {
 			console.error("[SW] fetch failed for", req.url, e);
 			// Try cache fallback before giving up
-			const cached = await caches.match(toPath(req.url));
+			const cached = await getFromCache(new URL(toPath(req.url), self.location.origin));
 			if (cached) return cached;
 			throw e; // no cache, rethrow — browser shows native error page
 		}
@@ -212,7 +229,7 @@ async function getfile(req: Request): Promise<Response> {
 		return await fetch(path);
 	}
 	console.log("Getting path: " + path);
-	const responseFromCache = await caches.match(path);
+	const responseFromCache = await getFromCache(new URL(path, self.location.origin));
 	if (responseFromCache) {
 		console.log("cache hit");
 		return responseFromCache;
@@ -445,7 +462,7 @@ self.addEventListener("message", (message) => {
 			enabled = data.data;
 			break;
 		case "ForceClear":
-			deleteoldcache();
+			clearAllShellCaches();
 			break;
 		case "clearCdnCache":
 			caches.delete("cdn");
