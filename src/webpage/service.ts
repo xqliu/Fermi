@@ -182,19 +182,64 @@ function toPathNoDefault(url: string) {
 	let html: string | undefined = undefined;
 	const path = Url.pathname;
 	if (path.startsWith("/channels") || path === "/app") {
-		html = "./app";
+		html = "/app.html";
 	} else if (path.startsWith("/invite/") || path === "/invite") {
-		html = "./invite";
+		html = "/invite.html";
 	} else if (path.startsWith("/template/") || path === "/template") {
-		html = "./template";
+		html = "/template.html";
 	} else if (path === "/") {
-		html = "./app";
+		html = "/app.html";
 	}
 	return html;
 }
 function toPath(url: string): string {
 	const Url = new URL(url);
 	return toPathNoDefault(url) || Url.pathname;
+}
+function isDocumentRequest(req: Request) {
+	return req.mode === "navigate" || req.destination === "document" || req.headers.get("accept")?.includes("text/html");
+}
+async function getCachedNavigationFallback(req: Request) {
+	const paths = new Set<string>();
+	const specific = toPathNoDefault(req.url);
+	if (specific) {
+		paths.add(specific);
+	}
+	paths.add("/app.html");
+	for (const path of paths) {
+		const cached = await getFromCache(new URL(path, self.location.origin));
+		if (cached) {
+			return cached;
+		}
+	}
+}
+function makeOfflineDocumentResponse() {
+	return new Response(
+		`<!doctype html>
+<html lang="en">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>Offline</title>
+	<style>
+		body { font-family: sans-serif; margin: 0; background: #05050a; color: #fff; display: grid; min-height: 100vh; place-items: center; }
+		main { max-width: 28rem; padding: 2rem; text-align: center; }
+		p { color: #bbb; line-height: 1.5; }
+	</style>
+</head>
+<body>
+	<main>
+		<h1>Offline</h1>
+		<p>This page is not cached yet. Open it once while online, then it will be available offline.</p>
+	</main>
+</body>
+</html>`,
+		{
+			status: 503,
+			statusText: "Offline",
+			headers: {"Content-Type": "text/html; charset=utf-8"},
+		},
+	);
 }
 let fails = 0;
 async function getfile(req: Request): Promise<Response> {
@@ -219,6 +264,11 @@ async function getfile(req: Request): Promise<Response> {
 			// Try cache fallback before giving up
 			const cached = await getFromCache(new URL(toPath(req.url), self.location.origin));
 			if (cached) return cached;
+			if (samedomain(req.url) && isDocumentRequest(req)) {
+				const navFallback = await getCachedNavigationFallback(req);
+				if (navFallback) return navFallback;
+				return makeOfflineDocumentResponse();
+			}
 			throw e; // no cache, rethrow — browser shows native error page
 		}
 	}
@@ -242,6 +292,11 @@ async function getfile(req: Request): Promise<Response> {
 		return responseFromNetwork;
 	} catch (e) {
 		console.error(e);
+		if (isDocumentRequest(req)) {
+			const navFallback = await getCachedNavigationFallback(req);
+			if (navFallback) return navFallback;
+			return makeOfflineDocumentResponse();
+		}
 		return new Response(null);
 	}
 }
