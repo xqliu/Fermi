@@ -1,5 +1,5 @@
 #!/bin/bash
-set -e
+set -euo pipefail
 
 cd /home/xqianliu/Fermi
 ASSETS_DIR="/home/xqianliu/backup/config"
