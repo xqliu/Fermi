@@ -14,25 +14,62 @@
 		<meta content="Lucky 5L 专属聊天服务" property="og:description" />
 		<meta content="/logo.webp" property="og:image" />
 		<meta content="#4b458c" name="theme-color" />
-		<link href="/style.css" rel="stylesheet" />
-		<link href="/themes.css" rel="stylesheet" id="lightcss" />
-		<link rel="icon" type="image/png" href="/avatars/1469391000983101480/b2fde4cb284902788fe4278789de063c.png?size=64&v=2" id="favicon" />
-		<link rel="apple-touch-icon" href="/avatars/1469391000983101480/b2fde4cb284902788fe4278789de063c.png?size=512" />
+		<meta name="color-scheme" content="dark light" />
 		<style>
+			html {
+				background: #16191b;
+			}
+			body {
+				margin: 0;
+				min-height: 100vh;
+			}
 			body.no-theme,
 			#loading {
 				background: #16191b;
+				color: #f2f3f5;
 				display: flex;
 				justify-content: center;
 				align-items: center;
 			}
+			#loading {
+				min-height: 100vh;
+			}
+			.centeritem {
+				width: min(100%, 28rem);
+				padding: 24px 16px 40px;
+				box-sizing: border-box;
+				text-align: center;
+			}
+			#loading img {
+				width: min(40vw, 3in);
+				height: min(40vw, 3in);
+				object-fit: contain;
+			}
 			@media (prefers-color-scheme: light) {
+				html,
 				body.no-theme,
 				#loading {
 					background: #9397bd;
+					color: #16191b;
 				}
 			}
 		</style>
+		<link href="/style.css" rel="preload" as="style" />
+		<link href="/themes.css" rel="preload" as="style" />
+		<link href="/style.css" rel="stylesheet" media="print" onload="this.media='all'" />
+		<link
+			href="/themes.css"
+			rel="stylesheet"
+			id="lightcss"
+			media="print"
+			onload="this.media='all'"
+		/>
+		<noscript>
+			<link href="/style.css" rel="stylesheet" />
+			<link href="/themes.css" rel="stylesheet" id="lightcss" />
+		</noscript>
+		<link rel="icon" type="image/png" href="/avatars/1469391000983101480/b2fde4cb284902788fe4278789de063c.png?size=64&v=2" id="favicon" />
+		<link rel="apple-touch-icon" href="/avatars/1469391000983101480/b2fde4cb284902788fe4278789de063c.png?size=512" />
 		<link rel="manifest" href="/manifest.json" />
 	</head>
 
