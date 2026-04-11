@@ -59,6 +59,26 @@ class MarkDown {
 	static getText() {
 		return text;
 	}
+	static hasRenderableSyntax(content: string) {
+		return /(^|\n)(#{1,3}\s|>\s| *[+*-] )|`{1,3}|\*{1,3}|_{1,3}|~~|\|\||<(a)?:[A-Za-z\d_]+:\d+>|https?:\/\/|www\.|\[[^\]]*\]\([^)]+\)/.test(
+			content,
+		);
+	}
+	static isSimpleEditableTree(node: Node): boolean {
+		if (node instanceof Text || node instanceof HTMLBRElement) {
+			return true;
+		}
+		if (!(node instanceof HTMLSpanElement) || node.attributes.length !== 0) {
+			return false;
+		}
+		return Array.from(node.childNodes).every((child) => this.isSimpleEditableTree(child));
+	}
+	static canSkipLiveRender(box: HTMLElement, content: string) {
+		return (
+			Array.from(box.childNodes).every((child) => this.isSimpleEditableTree(child)) &&
+			!this.hasRenderableSyntax(content)
+		);
+	}
 	makeHTML({keep = this.keep, stdsize = this.stdsize} = {}) {
 		return this.markdown(this.txt, {keep, stdsize});
 	}
@@ -1014,8 +1034,13 @@ class MarkDown {
 			if (content !== prevcontent) {
 				prevcontent = content;
 				this.txt = content.split("");
+				if (MarkDown.canSkipLiveRender(box, content)) {
+					formatted = false;
+					text = getCaretPrefix(box, content) || content;
+					this.onUpdate(text, formatted);
+					return;
+				}
 				this.boxupdate(undefined, undefined, undefined, _.key === "Backspace");
-				MarkDown.gatherBoxText(box);
 			}
 		};
 		box.addEventListener("compositionend", () => {
@@ -1277,6 +1302,83 @@ class MarkDown {
 //solution from https://stackoverflow.com/questions/4576694/saving-and-restoring-caret-position-for-contenteditable-div
 let text = "";
 let formatted = false;
+function getCaretPrefix(
+	context: HTMLElement,
+	content: string,
+	txtLengthFunc = MarkDown.gatherBoxText.bind(MarkDown),
+	computedLength: void | number = undefined,
+) {
+	const len = getCaretLength(context, txtLengthFunc, computedLength, content.length);
+	if (len === undefined) return undefined;
+	return content.substring(0, len);
+}
+function getCaretLength(
+	context: HTMLElement,
+	txtLengthFunc = MarkDown.gatherBoxText.bind(MarkDown),
+	computedLength: void | number = undefined,
+	totalLength: void | number = undefined,
+) {
+	const selection = window.getSelection() as Selection;
+	if (!selection || selection.rangeCount === 0) return;
+	const focusNode = selection.focusNode;
+	const focusOffset = selection.focusOffset;
+	if (!focusNode || !context.contains(focusNode)) return;
+	let len = 0;
+
+	if (focusNode === context) {
+		for (let i = 0; i < focusOffset && i < context.childNodes.length; i++) {
+			len += getNodeTextLength(context.childNodes[i], txtLengthFunc);
+		}
+	} else {
+		function countCharsUpToCursor(node: Node): boolean {
+			if (node === focusNode) {
+				if (node instanceof Text) {
+					len += focusOffset;
+				} else {
+					for (let i = 0; i < focusOffset && i < node.childNodes.length; i++) {
+						len += getNodeTextLength(node.childNodes[i], txtLengthFunc);
+					}
+				}
+				return true;
+			}
+			if (node instanceof Text) {
+				len += node.textContent?.length || 0;
+				return false;
+			}
+			if (node instanceof HTMLElement) {
+				if (!node.contains(focusNode)) {
+					len += txtLengthFunc(node).length;
+					return false;
+				}
+				if (node instanceof HTMLBRElement) {
+					len += 1;
+					return false;
+				}
+				if (node.hasAttribute("real") && node === focusNode) {
+					for (let i = 0; i < focusOffset && i < node.childNodes.length; i++) {
+						len += getNodeTextLength(node.childNodes[i], txtLengthFunc);
+					}
+					return true;
+				}
+				for (const child of Array.from(node.childNodes)) {
+					if (countCharsUpToCursor(child)) return true;
+				}
+			}
+			return false;
+		}
+
+		for (const child of Array.from(context.childNodes)) {
+			if (countCharsUpToCursor(child)) break;
+		}
+	}
+
+	if (computedLength !== undefined) {
+		len = computedLength;
+	}
+	const totalLen = totalLength ?? txtLengthFunc(context).length;
+	len = Math.min(len, totalLen);
+	return len;
+}
 function saveCaretPosition(
 	context: HTMLElement,
 	offset = 0,
@@ -1286,82 +1388,8 @@ function saveCaretPosition(
 	const selection = window.getSelection() as Selection;
 	if (!selection || selection.rangeCount === 0) return;
 	try {
-		// Compute character offset WITHOUT mutating the selection.
-		// Walk the DOM tree up to the cursor position, summing text lengths.
-		const focusNode = selection.focusNode;
-		const focusOffset = selection.focusOffset;
-		if (!focusNode || !context.contains(focusNode)) return;
-
-		let len = 0;
-
-		// Special case: focusNode IS the context element itself
-		// (happens when cursor is at end of box, or box has no text nodes)
-		if (focusNode === context) {
-			for (let i = 0; i < focusOffset && i < context.childNodes.length; i++) {
-				len += getNodeTextLength(context.childNodes[i], txtLengthFunc);
-			}
-		} else {
-
-		// Walk all nodes in context in document order until we reach the focus point
-		function countCharsUpToCursor(node: Node): boolean {
-			if (node === focusNode) {
-				// Found the cursor node
-				if (node instanceof Text) {
-					// focusOffset is character index within this text node
-					len += focusOffset;
-				} else {
-					// focusOffset is child index — count text of children before it
-					for (let i = 0; i < focusOffset && i < node.childNodes.length; i++) {
-						len += getNodeTextLength(node.childNodes[i], txtLengthFunc);
-					}
-				}
-				return true; // found
-			}
-			if (node instanceof Text) {
-				len += node.textContent?.length || 0;
-				return false;
-			}
-			if (node instanceof HTMLElement) {
-				// Check if focusNode is inside this element
-				if (!node.contains(focusNode)) {
-					// focusNode is not inside — count entire element text and skip
-					len += txtLengthFunc(node).length;
-					return false;
-				}
-				// focusNode is inside — recurse into children
-				if (node instanceof HTMLBRElement) {
-					len += 1;
-					return false;
-				}
-				if (node.hasAttribute("real")) {
-					// Special element — count its "real" text
-					// But if cursor is inside, we need to be more careful
-					if (node === focusNode) {
-						for (let i = 0; i < focusOffset && i < node.childNodes.length; i++) {
-							len += getNodeTextLength(node.childNodes[i], txtLengthFunc);
-						}
-						return true;
-					}
-				}
-				for (const child of Array.from(node.childNodes)) {
-					if (countCharsUpToCursor(child)) return true;
-				}
-			}
-			return false;
-		}
-
-		// Don't count context itself, start with its children
-		for (const child of Array.from(context.childNodes)) {
-			if (countCharsUpToCursor(child)) break;
-		}
-
-		} // end else (focusNode !== context)
-
-		if (computedLength !== undefined) {
-			len = computedLength;
-		}
-		const totalLen = txtLengthFunc(context).length;
-		len = Math.min(len, totalLen);
+		let len = getCaretLength(context, txtLengthFunc, computedLength);
+		if (len === undefined) return;
 		len += offset;
 		text = txtLengthFunc(context).substring(0, len);
 
