@@ -238,6 +238,12 @@ if (_forceChannelsInit || window.location.pathname.startsWith("/channels")) {
 		};
 	}
 	const loaddesc = document.getElementById("load-desc") as HTMLSpanElement;
+	const hideLoadingOverlay = () => {
+		const loading = document.getElementById("loading") as HTMLDivElement | null;
+		if (!loading) return;
+		loading.classList.add("doneloading");
+		loading.classList.remove("loading");
+	};
 	try {
 		const current = sessionStorage.getItem("currentuser") || Localuser.users.currentuser;
 		_debugLog(`user: ${current ? "found" : "none"}`);
@@ -269,9 +275,7 @@ if (_forceChannelsInit || window.location.pathname.startsWith("/channels")) {
 			loaddesc.textContent = fromCache ? "正在加载本地缓存..." : "正在加载频道...";
 			thisUser.loaduser();
 			await thisUser.init();
-			const loading = document.getElementById("loading") as HTMLDivElement;
-			loading.classList.add("doneloading");
-			loading.classList.remove("loading");
+			hideLoadingOverlay();
 			loaddesc.textContent = fromCache ? "本地缓存已加载" : I18n.loaded();
 			console.log(fromCache ? "loaded from cache" : "done loading");
 			if (templateID) {
@@ -298,10 +302,24 @@ if (_forceChannelsInit || window.location.pathname.startsWith("/channels")) {
 				thisUser.subscribePush().catch((e: any) => console.warn("[push] subscribe failed:", e));
 			}
 		};
-		restoredOffline = await thisUser.restoreOfflineReady();
+		restoredOffline = await Promise.race<boolean>([
+			thisUser.restoreOfflineReady(),
+			new Promise<boolean>((resolve) =>
+				setTimeout(() => {
+					console.warn("[offline] restoreOfflineReady timed out after 3s");
+					resolve(false);
+				}, 3000),
+			),
+		]);
 		if (restoredOffline) {
 			_debugLog("已恢复本地缓存，先显示本地数据");
-			await finishLoading(true);
+			try {
+				await finishLoading(true);
+			} catch (error) {
+				console.error("[offline] finishLoading(true) failed", error);
+				hideLoadingOverlay();
+				throw error;
+			}
 		}
 		let retryCount = 0;
 		const waitForOnline = () => {
@@ -334,8 +352,14 @@ if (_forceChannelsInit || window.location.pathname.startsWith("/channels")) {
 					new Promise((_, rej) => setTimeout(() => rej(new Error("WS timeout 15s")), 15000)),
 				]);
 				retryCount = 0;
-				await finishLoading();
-			} catch (e) {
+					try {
+						await finishLoading();
+					} catch (error) {
+						console.error("[init] finishLoading() failed", error);
+						hideLoadingOverlay();
+						throw error;
+					}
+				} catch (e) {
 				retryCount++;
 				if (retryCount > 5) {
 					const delayMs = 15000;
@@ -369,12 +393,13 @@ if (_forceChannelsInit || window.location.pathname.startsWith("/channels")) {
 			}
 		};
 		connectWithRetry();
-	} catch (e) {
-		_debugLog(`启动异常: ${e instanceof Error ? e.message : e}`);
-		console.error(e);
-		loaddesc.textContent = I18n.accountNotStart();
-		thisUser = new Localuser(-1);
-	}
+		} catch (e) {
+			_debugLog(`启动异常: ${e instanceof Error ? e.message : e}`);
+			console.error(e);
+			hideLoadingOverlay();
+			loaddesc.textContent = I18n.accountNotStart();
+			thisUser = new Localuser(-1);
+		}
 	//TODO move this to the channel/guild class, this is a weird spot
 	const menu = new Contextmenu<void, void>("create rightclick");
 	menu.addButton(

@@ -2536,6 +2536,7 @@ class Localuser {
 	)[] = [];
 	buildservers(): void {
 		const serverlist = document.getElementById("servers") as HTMLDivElement; //
+		serverlist.innerHTML = "";
 		const outdiv = document.createElement("div");
 		const home: any = document.createElement("span");
 		const div = document.createElement("div");
