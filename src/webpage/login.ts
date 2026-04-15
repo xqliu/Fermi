@@ -75,6 +75,27 @@ export async function makeLogin(
 		background: #5865f2; color: #fff; font-size: 16px; cursor: pointer;
 	`;
 
+	const getErrorMessage = (json: any) => {
+		const errorGroups = json?.errors;
+		if (errorGroups && typeof errorGroups === "object") {
+			for (const value of Object.values(errorGroups)) {
+				const errors = (value as { _errors?: {message?: string; code?: string}[] })?._errors;
+				const first = Array.isArray(errors) ? errors[0] : undefined;
+				if (!first) continue;
+				if (first.code === "INVALID_LOGIN") {
+					return "账号或密码错误";
+				}
+				if (typeof first.message === "string" && first.message !== "Invalid Form Body") {
+					return first.message;
+				}
+			}
+		}
+		if (typeof json?.message === "string" && json.message !== "Invalid Form Body") {
+			return json.message;
+		}
+		return "登录失败";
+	};
+
 	const doLogin = async () => {
 		const email = emailInput.value.trim();
 		const pw = pwInput.value;
@@ -112,7 +133,7 @@ export async function makeLogin(
 					safeNavigate("/channels/@me");
 				}
 			} else {
-				const msg = json.errors?.[0]?._errors?.[0]?.message || json.message || "登录失败";
+				const msg = getErrorMessage(json);
 				errorDiv.textContent = msg;
 				errorDiv.style.display = "block";
 			}
