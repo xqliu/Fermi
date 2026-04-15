@@ -390,7 +390,10 @@ export {mobile, iOS, navPushState};
  * These helpers retry with escalating strategies.
  */
 export function safeReload(): void {
-	window.location.reload();
+	clearPendingNavigateTimers();
+	const url = new URL(window.location.href);
+	url.searchParams.set("_cv", Date.now().toString());
+	safeNavigate(url.toString());
 }
 let pendingNavigateTimers: number[] = [];
 function clearPendingNavigateTimers() {
