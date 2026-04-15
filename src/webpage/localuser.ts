@@ -3186,12 +3186,24 @@ class Localuser {
 				);
 			}
 		}
-		{
-			const update = settings.addButton(I18n.localuser.updateSettings());
-			let index = ServiceWorkerModeValues.indexOf(localSettings.serviceWorkerMode);
-			if (index === -1) {
-				index = 2;
-			}
+			{
+				const update = settings.addButton(I18n.localuser.updateSettings());
+				const {FERMI_VERSION} = await import("./index.js");
+				const localVer = FERMI_VERSION.substring(0, 8);
+				const fetchLatestVersion = async (): Promise<string> =>
+					await new Promise<string>((resolve) => {
+						const xhr = new XMLHttpRequest();
+						xhr.open("GET", "/getupdates?_=" + Date.now() + "&r=" + Math.random());
+						xhr.setRequestHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+						xhr.setRequestHeader("Pragma", "no-cache");
+						xhr.onload = () => resolve(xhr.status === 200 ? xhr.responseText.trim().substring(0, 8) : "?");
+						xhr.onerror = () => resolve("?");
+						xhr.send();
+					});
+				let index = ServiceWorkerModeValues.indexOf(localSettings.serviceWorkerMode);
+				if (index === -1) {
+					index = 2;
+				}
 			const sw = update.addSelect(
 				I18n.settings.updates.serviceWorkerMode.title(),
 				() => {},
@@ -3206,30 +3218,31 @@ class Localuser {
 			const checkBtn = update.addButtonInput("", I18n.localuser.CheckUpdate(), async () => {
 				const btn = checkBtn.buttonHtml;
 				const origText = btn?.textContent || "";
-				if (btn) {
-					btn.disabled = true;
-					btn.classList.add("loading");
-					btn.textContent = "";
-				}
-				try {
-					const update = await SW.checkUpdates();
-					const text = update ? I18n.localuser.updatesYay() : I18n.localuser.noUpdates();
-					const d = new Dialog("");
-					d.options.addTitle(text);
-					if (update) {
-						const refreshBtn = d.options.addButtonInput("", I18n.localuser.refreshPage(), async () => {
-							const b = refreshBtn.buttonHtml;
-							if (b) {
-								b.disabled = true;
-								b.classList.add("loading");
-								b.textContent = "";
-							}
-								// Non-destructive refresh: keep SW + shell cache intact, just bypass browser HTTP cache.
+					if (btn) {
+						btn.disabled = true;
+						btn.classList.add("loading");
+						btn.textContent = "";
+					}
+					try {
+						const serverVer = await fetchLatestVersion();
+						const swUpdate = await SW.checkUpdates();
+						const update = serverVer !== "?" ? serverVer !== localVer || swUpdate : swUpdate;
+						const text = update ? I18n.localuser.updatesYay() : I18n.localuser.noUpdates();
+						const d = new Dialog("");
+						d.options.addTitle(text);
+						if (update) {
+							const refreshBtn = d.options.addButtonInput("", I18n.localuser.refreshPage(), async () => {
+								const b = refreshBtn.buttonHtml;
+								if (b) {
+									b.disabled = true;
+									b.classList.add("loading");
+									b.textContent = "";
+								}
 								safeReload();
 							});
 						}
-					d.show();
-				} finally {
+						d.show();
+					} finally {
 					if (btn) {
 						btn.disabled = false;
 						btn.classList.remove("loading");
@@ -3237,51 +3250,28 @@ class Localuser {
 					}
 				}
 			});
-			update.addButtonInput("", I18n.localuser.clearCache(), () => {
-				SW.forceClear();
-			});
-			update.addButtonInput("", "深度修复（解决更新卡住）🔧", () => {
-				window.location.href = "/reset";
-			});
-
-			// Version display: compiled-in SHA vs latest deployed
-			const {FERMI_VERSION} = await import("./index.js");
-			const localVer = FERMI_VERSION.substring(0, 8);
-			// Use XHR with cache-busting headers to guarantee no cache on iOS Safari
-			const serverVer = await new Promise<string>((resolve) => {
-				const xhr = new XMLHttpRequest();
-				xhr.open("GET", "/getupdates?_=" + Date.now() + "&r=" + Math.random());
-				xhr.setRequestHeader("Cache-Control", "no-cache, no-store, must-revalidate");
-				xhr.setRequestHeader("Pragma", "no-cache");
-				xhr.onload = () => resolve(xhr.status === 200 ? xhr.responseText.trim().substring(0, 8) : "?");
-				xhr.onerror = () => resolve("?");
-				xhr.send();
-			});
-			const needsUpdate = localVer !== serverVer;
-			const match = needsUpdate ? "⚠️ 需更新" : "✅";
-			update.addText(`运行: ${localVer} | 最新: ${serverVer} ${match}`);
-			if (needsUpdate) {
-				const applyBtn = update.addButtonInput("", "刷新以应用更新 🔄", async () => {
-					const b = applyBtn.buttonHtml;
-					if (b) { b.disabled = true; b.textContent = "清理缓存中..."; }
-					try {
-						// 1. Unregister service workers so they don't serve stale cache
-						if ("serviceWorker" in navigator) {
-							const regs = await navigator.serviceWorker.getRegistrations();
-							for (const r of regs) await r.unregister();
-						}
-						// 2. Delete all caches
-						const keys = await caches.keys();
-						for (const k of keys) await caches.delete(k);
-						// 3. Navigate with cache-bust (keeps localStorage/login intact)
-						if (b) b.textContent = "重新加载...";
-						window.location.href = "/?v=" + Date.now();
-					} catch (e) {
-						if (b) b.textContent = "失败，跳转修复页...";
-						setTimeout(() => { window.location.href = "/reset"; }, 1000);
-					}
+				update.addButtonInput("", I18n.localuser.clearCache(), () => {
+					SW.forceClear();
 				});
-			}
+				update.addButtonInput("", "深度修复（解决更新卡住）🔧", () => {
+					window.location.href = "/reset";
+				});
+
+				// Version display: compiled-in SHA vs latest deployed
+				const serverVer = await fetchLatestVersion();
+				const needsUpdate = localVer !== serverVer;
+				const match = needsUpdate ? "⚠️ 需更新" : "✅";
+				update.addText(`运行: ${localVer} | 最新: ${serverVer} ${match}`);
+				if (needsUpdate) {
+					const applyBtn = update.addButtonInput("", "刷新以应用更新 🔄", async () => {
+						const b = applyBtn.buttonHtml;
+						if (b) {
+							b.disabled = true;
+							b.textContent = "重新加载...";
+						}
+						safeReload();
+					});
+				}
 
 			// Latest commit metadata (generated by deploy.sh)
 			const commitMeta = await new Promise<{short?: string; committedAt?: string; message?: string} | null>((resolve) => {
