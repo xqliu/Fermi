@@ -3224,17 +3224,7 @@ class Localuser {
 								b.classList.add("loading");
 								b.textContent = "";
 							}
-							// Clear SW cache first, then reload — otherwise reload gets stale files from SW
-								try {
-									if ("serviceWorker" in navigator) {
-										const regs = await navigator.serviceWorker.getRegistrations();
-										for (const r of regs) await r.unregister();
-									}
-									const keys = await caches.keys();
-									for (const k of keys) await caches.delete(k);
-								} catch (e) {
-									console.error("[refresh] cache clear failed:", e);
-								}
+								// Non-destructive refresh: keep SW + shell cache intact, just bypass browser HTTP cache.
 								safeReload();
 							});
 						}
