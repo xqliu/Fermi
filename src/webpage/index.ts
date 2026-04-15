@@ -81,7 +81,18 @@ let _lastActiveTime = Date.now();
 if ("serviceWorker" in navigator) {
 	navigator.serviceWorker.addEventListener("message", async (event) => {
 		if (event.data?.code === "newVersion" && event.data.version !== FERMI_VERSION) {
-			console.log(`[update] New version ${event.data.version}, current ${FERMI_VERSION}, reloading`);
+			const loadingVisible = document.getElementById("loading")?.classList.contains("loading");
+			// @ts-ignore
+			const bootedFromShellCache = window.__bootedFromShellCache;
+			console.log(
+				`[update] New version ${event.data.version}, current ${FERMI_VERSION}, loading=${loadingVisible}, cacheBoot=${bootedFromShellCache || "none"}`,
+			);
+			if (loadingVisible || bootedFromShellCache) {
+				console.warn("[update] defer auto-reload during startup/cache bootstrap");
+				const updateIcon = document.getElementById("updateIcon");
+				if (updateIcon) updateIcon.hidden = false;
+				return;
+			}
 			safeReload();
 		}
 	});

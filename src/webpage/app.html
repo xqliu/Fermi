@@ -130,7 +130,6 @@
 							try {
 								const cacheNames = (await caches.keys())
 									.filter(function(name) { return name.indexOf('cache-') === 0; })
-									.sort()
 									.reverse();
 								for (const cacheName of cacheNames) {
 									const cache = await caches.open(cacheName);
@@ -143,8 +142,9 @@
 										.replaceAll('import("../index.js")', 'import("/index.js")');
 									const blobUrl = URL.createObjectURL(new Blob([code], { type: 'text/javascript' }));
 									try {
+										window.__bootedFromShellCache = cacheName;
 										await import(blobUrl);
-										log('已从本地缓存启动 JS');
+										log('已从本地缓存启动 JS: ' + cacheName.slice(-8));
 										return true;
 									} finally {
 										setTimeout(function() { URL.revokeObjectURL(blobUrl); }, 10000);
