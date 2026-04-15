@@ -740,11 +740,9 @@ class Localuser {
 	}
 	async gottenReady(ready: readyjson): Promise<void> {
 		await this.applyReadyState(ready);
-		try {
-			await saveOfflineReady(this.offlineScope, ready);
-		} catch (error) {
+		saveOfflineReady(this.offlineScope, ready).catch((error) => {
 			console.warn("[offline] failed to persist ready snapshot", error);
-		}
+		});
 	}
 	async restoreOfflineReady(): Promise<boolean> {
 		try {
@@ -879,16 +877,26 @@ class Localuser {
 					let build = "";
 					for await (const data of ds.readable.tee()[0].pipeThrough(new TextDecoderStream())) {
 						build += data;
+						let temp: wsjson;
 						try {
-							const temp = JSON.parse(build);
+							temp = JSON.parse(build);
 							build = "";
+						} catch {
+							continue;
+						}
+						try {
 							await this.handleEvent(temp);
-
 							if (temp.op === 0 && (temp.t === "READY" || temp.t === "RESUMED")) {
 								console.log("in here?");
 								returny();
 							}
-						} catch {}
+						} catch (error) {
+							console.error("[ws] handleEvent failed (decompression path)", {
+								op: temp.op,
+								t: temp.t,
+								error,
+							});
+						}
 					}
 				})();
 			}
