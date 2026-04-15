@@ -304,7 +304,27 @@ if (_forceChannelsInit || window.location.pathname.startsWith("/channels")) {
 			await finishLoading(true);
 		}
 		let retryCount = 0;
+		const waitForOnline = () => {
+			_debugLog("当前离线，跳过 WS 连接，等待网络恢复");
+			loaddesc.textContent = restoredOffline ? "当前离线，已显示本地缓存" : "当前离线，等待网络恢复";
+			if (!onlineRetryRegistered) {
+				onlineRetryRegistered = true;
+				window.addEventListener(
+					"online",
+					() => {
+						onlineRetryRegistered = false;
+						retryCount = 0;
+						connectWithRetry();
+					},
+					{once: true},
+				);
+			}
+		};
 		const connectWithRetry = async () => {
+			if (!navigator.onLine) {
+				waitForOnline();
+				return;
+			}
 			try {
 				_debugLog(`WS 连接中... (attempt ${retryCount + 1})`);
 				loaddesc.textContent = "正在连接服务器...";
@@ -327,24 +347,15 @@ if (_forceChannelsInit || window.location.pathname.startsWith("/channels")) {
 					loaddesc.textContent = restoredOffline
 						? "当前离线，已显示本地缓存"
 						: `连接失败，${Math.round(delayMs / 1000)}秒后重试...`;
-					if (!onlineRetryRegistered) {
-						onlineRetryRegistered = true;
-						window.addEventListener(
-							"online",
-							() => {
-								onlineRetryRegistered = false;
-								retryCount = 0;
-								connectWithRetry();
-							},
-							{once: true},
-						);
-					}
+					waitForOnline();
 					if (!delayedRetryScheduled) {
 						delayedRetryScheduled = true;
 						setTimeout(() => {
 							delayedRetryScheduled = false;
-							retryCount = 0;
-							connectWithRetry();
+							if (navigator.onLine) {
+								retryCount = 0;
+								connectWithRetry();
+							}
 						}, delayMs);
 					}
 					return;

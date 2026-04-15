@@ -6,6 +6,7 @@ const SNAPSHOT_STORE = "snapshots";
 const MESSAGE_STORE = "messages";
 const CHANNEL_STATE_STORE = "channelStates";
 const MESSAGE_LIMIT = 100;
+const LOCAL_SNAPSHOT_PREFIX = "offlineReady:";
 
 type OfflineReadySnapshot = {
 	user: readyjson["d"]["user"];
@@ -93,6 +94,10 @@ function getDb(): Promise<IDBDatabase> {
 
 function makeChannelKey(scope: string, channelId: string): string {
 	return `${scope}::${channelId}`;
+}
+
+function getLocalSnapshotKey(scope: string): string {
+	return `${LOCAL_SNAPSHOT_PREFIX}${scope}`;
 }
 
 function sortMessagesNewestFirst(messages: messagejson[]): messagejson[] {
@@ -192,12 +197,18 @@ export function snapshotToReady(snapshot: OfflineReadySnapshot): readyjson {
 }
 
 export async function saveOfflineReady(scope: string, ready: readyjson): Promise<void> {
+	const snapshot = makeOfflineReady(ready);
+	try {
+		localStorage.setItem(getLocalSnapshotKey(scope), JSON.stringify(snapshot));
+	} catch (error) {
+		console.warn("[offline] failed to persist localStorage ready snapshot", error);
+	}
 	const db = await getDb();
 	const transaction = db.transaction(SNAPSHOT_STORE, "readwrite");
 	const store = transaction.objectStore(SNAPSHOT_STORE);
 	const record: SnapshotRecord = {
 		scope,
-		snapshot: makeOfflineReady(ready),
+		snapshot,
 		updatedAt: Date.now(),
 	};
 	store.put(record);
@@ -205,12 +216,26 @@ export async function saveOfflineReady(scope: string, ready: readyjson): Promise
 }
 
 export async function loadOfflineReady(scope: string): Promise<readyjson | undefined> {
-	const db = await getDb();
-	const transaction = db.transaction(SNAPSHOT_STORE, "readonly");
-	const store = transaction.objectStore(SNAPSHOT_STORE);
-	const record = (await requestToPromise(store.get(scope))) as SnapshotRecord | undefined;
-	await transactionDone(transaction);
-	return record ? snapshotToReady(record.snapshot) : undefined;
+	try {
+		const db = await getDb();
+		const transaction = db.transaction(SNAPSHOT_STORE, "readonly");
+		const store = transaction.objectStore(SNAPSHOT_STORE);
+		const record = (await requestToPromise(store.get(scope))) as SnapshotRecord | undefined;
+		await transactionDone(transaction);
+		if (record) {
+			return snapshotToReady(record.snapshot);
+		}
+	} catch (error) {
+		console.warn("[offline] failed to load IndexedDB ready snapshot, trying localStorage", error);
+	}
+	try {
+		const raw = localStorage.getItem(getLocalSnapshotKey(scope));
+		if (!raw) return undefined;
+		return snapshotToReady(JSON.parse(raw) as OfflineReadySnapshot);
+	} catch (error) {
+		console.warn("[offline] failed to load localStorage ready snapshot", error);
+		return undefined;
+	}
 }
 
 export async function saveChannelMessages(
