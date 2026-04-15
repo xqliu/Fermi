@@ -90,15 +90,36 @@
 						var t = new Date().toLocaleTimeString();
 						var msgs = [];
 						function log(m) { msgs.push('[' + new Date().toLocaleTimeString() + '] ' + m); d.textContent = msgs.slice(-3).join(' | '); }
+						function loadingVisible() {
+							var loading = document.getElementById('loading');
+							return !!loading && loading.classList.contains('loading');
+						}
+						function clearLoadingTimers() {
+							if (window.__loadingTimer10) clearTimeout(window.__loadingTimer10);
+							if (window.__loadingTimer30) clearTimeout(window.__loadingTimer30);
+						}
 						log('html ok, path=' + location.pathname);
 						window.__loadingDebug = log;
+						window.__loadingComplete = function(message) {
+							clearLoadingTimers();
+							if (message && loadingVisible()) log(message);
+						};
 						// Check if SW is blocking
 						if ('serviceWorker' in navigator) {
 							navigator.serviceWorker.ready.then(function() { log('sw ready'); });
 						}
 						// Timeout warning
-						setTimeout(function() { log('⚠️ 10s timeout'); d.style.color = '#f04747'; }, 10000);
-						setTimeout(function() { log('⚠️ 30s timeout - JS可能没加载'); d.style.color = '#f04747'; d.style.fontSize = '12px'; }, 30000);
+						window.__loadingTimer10 = setTimeout(function() {
+							if (!loadingVisible()) return;
+							log('⚠️ 10s timeout');
+							d.style.color = '#f04747';
+						}, 10000);
+						window.__loadingTimer30 = setTimeout(function() {
+							if (!loadingVisible()) return;
+							log(window.__moduleLoaded ? '⚠️ 30s timeout - 频道初始化卡住' : '⚠️ 30s timeout - JS可能没加载');
+							d.style.color = '#f04747';
+							d.style.fontSize = '12px';
+						}, 30000);
 						// Detect if module script loads
 						window.__moduleLoaded = false;
 						window.__cacheBootstrapTried = false;

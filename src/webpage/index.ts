@@ -241,6 +241,8 @@ if (_forceChannelsInit || window.location.pathname.startsWith("/channels")) {
 	const hideLoadingOverlay = () => {
 		const loading = document.getElementById("loading") as HTMLDivElement | null;
 		if (!loading) return;
+		// @ts-ignore
+		if (window.__loadingComplete) window.__loadingComplete("已进入应用");
 		loading.classList.add("doneloading");
 		loading.classList.remove("loading");
 	};

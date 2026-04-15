@@ -1521,13 +1521,24 @@ class Channel extends SnowFlake {
 		console.log(waits);
 	}
 	async focus(id: string, flash = true) {
-		const prom = this.getMessages(id);
+		const prom = this.getMessages(id).catch((error) => {
+			console.error("[channel] getMessages failed", error);
+		});
 
-		if (await Promise.race([prom, new Promise((res) => setTimeout(() => res(true), 300))])) {
+		if (await Promise.race([prom.then(() => false), new Promise((res) => setTimeout(() => res(true), 300))])) {
 			const loading = document.getElementById("loadingdiv") as HTMLDivElement;
 			Channel.regenLoadingMessages();
 			loading.classList.add("loading");
-			await prom;
+			const finishedInTime = await Promise.race([
+				prom.then(() => true),
+				new Promise<boolean>((res) => setTimeout(() => res(false), 5000)),
+			]);
+			if (!finishedInTime) {
+				console.warn("[channel] getMessages timed out, continuing with current batch", {
+					channelId: this.id,
+					messageId: id,
+				});
+			}
 			loading.classList.remove("loading");
 		}
 
