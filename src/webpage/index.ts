@@ -337,62 +337,66 @@ if (_forceChannelsInit || window.location.pathname.startsWith("/channels")) {
 					{once: true},
 				);
 			}
-		};
-		const connectWithRetry = async () => {
-			if (!navigator.onLine) {
-				waitForOnline();
-				return;
-			}
-			try {
-				_debugLog(`WS 连接中... (attempt ${retryCount + 1})`);
-				loaddesc.textContent = "正在连接服务器...";
-				// Timeout WS connection — iOS PWA can hang indefinitely
-				await Promise.race([
-					thisUser.initwebsocket(),
-					new Promise((_, rej) => setTimeout(() => rej(new Error("WS timeout 15s")), 15000)),
-				]);
-				retryCount = 0;
-					try {
-						await finishLoading();
-					} catch (error) {
-						console.error("[init] finishLoading() failed", error);
-						hideLoadingOverlay();
-						throw error;
-					}
-				} catch (e) {
-				retryCount++;
-				if (retryCount > 5) {
-					const delayMs = 15000;
-					_debugLog(
-						restoredOffline
-							? "网络不可用，保持离线缓存，等待在线或定时重连"
-							: "启动连接失败，停止 reload 循环，等待在线或定时重连",
-					);
-					loaddesc.textContent = restoredOffline
-						? "当前离线，已显示本地缓存"
-						: `连接失败，${Math.round(delayMs / 1000)}秒后重试...`;
+			};
+			const connectWithRetry = async () => {
+				if (!navigator.onLine) {
 					waitForOnline();
-					if (!delayedRetryScheduled) {
-						delayedRetryScheduled = true;
-						setTimeout(() => {
-							delayedRetryScheduled = false;
-							if (navigator.onLine) {
-								retryCount = 0;
-								connectWithRetry();
-							}
-						}, delayMs);
-					}
 					return;
 				}
-				const delay = Math.min(3000 * retryCount, 10000);
-				_debugLog(`WS 失败 #${retryCount}: ${e instanceof Error ? e.message : e}`);
-				console.error(`[init] WS failed (attempt ${retryCount}/5), error: ${e instanceof Error ? e.message : e}, retrying in ${delay/1000}s...`);
-				loaddesc.textContent = `连接失败，正在重试... (${retryCount}/5)`;
-				await new Promise((r) => setTimeout(r, delay));
-				await connectWithRetry();
-			}
-		};
-		connectWithRetry();
+				try {
+					_debugLog(`WS 连接中... (attempt ${retryCount + 1})`);
+					loaddesc.textContent = "正在连接服务器...";
+					// Timeout WS connection — iOS PWA can hang indefinitely
+					await Promise.race([
+						thisUser.initwebsocket(),
+						new Promise((_, rej) => setTimeout(() => rej(new Error("WS timeout 15s")), 15000)),
+					]);
+					retryCount = 0;
+				} catch (e) {
+					retryCount++;
+					if (retryCount > 5) {
+						const delayMs = 15000;
+						_debugLog(
+							restoredOffline
+								? "网络不可用，保持离线缓存，等待在线或定时重连"
+								: "启动连接失败，停止 reload 循环，等待在线或定时重连",
+						);
+						loaddesc.textContent = restoredOffline
+							? "当前离线，已显示本地缓存"
+							: `连接失败，${Math.round(delayMs / 1000)}秒后重试...`;
+						waitForOnline();
+						if (!delayedRetryScheduled) {
+							delayedRetryScheduled = true;
+							setTimeout(() => {
+								delayedRetryScheduled = false;
+								if (navigator.onLine) {
+									retryCount = 0;
+									connectWithRetry();
+								}
+							}, delayMs);
+						}
+						return;
+					}
+					const delay = Math.min(3000 * retryCount, 10000);
+					_debugLog(`WS 失败 #${retryCount}: ${e instanceof Error ? e.message : e}`);
+					console.error(
+						`[init] WS failed (attempt ${retryCount}/5), error: ${
+							e instanceof Error ? e.message : e
+						}, retrying in ${delay / 1000}s...`,
+					);
+					loaddesc.textContent = `连接失败，正在重试... (${retryCount}/5)`;
+					await new Promise((r) => setTimeout(r, delay));
+					await connectWithRetry();
+					return;
+				}
+				try {
+					await finishLoading();
+				} catch (error) {
+					console.error("[init] finishLoading() failed", error);
+					hideLoadingOverlay();
+				}
+			};
+			connectWithRetry();
 		} catch (e) {
 			_debugLog(`启动异常: ${e instanceof Error ? e.message : e}`);
 			console.error(e);
