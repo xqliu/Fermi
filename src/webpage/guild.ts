@@ -1694,20 +1694,26 @@ class Guild extends SnowFlake {
 			noti.classList.add("notiunread");
 		}
 	}
-	async goToThread(threadId: string) {
+	async goToThread(threadId: string): Promise<boolean> {
 		if (!this.localuser.channelids.has(threadId)) {
-			const channelJson = (await (
-				await fetch(this.info.api + "/channels/" + threadId, {
-					headers: this.headers,
-				})
-			).json()) as channeljson;
-			const channel = new Channel(channelJson, this);
-			this.localuser.channelids.set(channel.id, channel);
-			channel.resolveparent(this);
-			const par = this.localuser.channelids.get(channel.parent_id as string);
-			par?.createguildHTML();
+			try {
+				const channelJson = (await (
+					await fetch(this.info.api + "/channels/" + threadId, {
+						headers: this.headers,
+					})
+				).json()) as channeljson;
+				const channel = new Channel(channelJson, this);
+				this.localuser.channelids.set(channel.id, channel);
+				channel.resolveparent(this);
+				const par = this.localuser.channelids.get(channel.parent_id as string);
+				par?.createguildHTML();
+			} catch (error) {
+				console.warn("[offline] failed to resolve thread, falling back to cached channel", error);
+				return false;
+			}
 		}
-		this.localuser.goToChannel(threadId);
+		await this.localuser.goToChannel(threadId);
+		return true;
 	}
 	getHTML() {
 		const sideContainDiv = document.getElementById("sideContainDiv");
@@ -1772,7 +1778,21 @@ class Guild extends SnowFlake {
 				await channel.getHTML(addstate, undefined, message);
 				return;
 			} else {
-				await this.goToThread(ID);
+				const opened = await this.goToThread(ID);
+				if (!opened) {
+					if (this.prevchannel && this.prevchannel.visible) {
+						await this.prevchannel.getHTML(addstate, undefined, message);
+						return;
+					}
+					for (const thing of this.channels) {
+						if (thing.type !== 4 && thing.visible) {
+							await thing.getHTML(addstate, undefined, message);
+							return;
+						}
+					}
+					this.removePrevChannel();
+					this.noChannel(addstate);
+				}
 				return;
 			}
 		}

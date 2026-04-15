@@ -55,6 +55,9 @@ let _lastActiveTime = Date.now();
 // Uses XMLHttpRequest to bypass Service Worker fetch handler entirely.
 (function startupVersionCheck() {
 	try {
+		if (!navigator.onLine) {
+			return;
+		}
 		const xhr = new XMLHttpRequest();
 		xhr.open("GET", "/getupdates?_v=" + Date.now() + Math.random(), true);
 		xhr.setRequestHeader("Cache-Control", "no-cache, no-store");
@@ -259,7 +262,9 @@ if (_forceChannelsInit || window.location.pathname.startsWith("/channels")) {
 		let onlineRetryRegistered = false;
 		let delayedRetryScheduled = false;
 		// Pre-fetch defaults (fire-and-forget, used after init)
-		fetch("/user-defaults.json").then(r => r.ok ? r.json() : null).then(d => { _defaultsCfg = d; }).catch(() => {});
+		if (navigator.onLine) {
+			fetch("/user-defaults.json").then(r => r.ok ? r.json() : null).then(d => { _defaultsCfg = d; }).catch(() => {});
+		}
 		const finishLoading = async (fromCache = false) => {
 			loaddesc.textContent = fromCache ? "正在加载本地缓存..." : "正在加载频道...";
 			thisUser.loaduser();

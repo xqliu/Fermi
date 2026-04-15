@@ -1074,36 +1074,57 @@ export class SW {
 
 		// If it's registered, it handles CDN caching regardless of settings.
 		if (getLocalSettings().serviceWorkerMode == ServiceWorkerMode.Unregistered) return;
-		return new Promise<void>((res) => {
+		const bindRegistration = (registration: ServiceWorkerRegistration | undefined) => {
+			if (!registration) return false;
+			let serviceWorker: ServiceWorker | undefined;
+			if (registration.installing) {
+				serviceWorker = registration.installing;
+				console.log("Service worker: installing");
+			} else if (registration.waiting) {
+				serviceWorker = registration.waiting;
+				console.log("Service worker: waiting");
+			} else if (registration.active) {
+				serviceWorker = registration.active;
+				console.log("Service worker: active");
+			}
+			if (!serviceWorker) {
+				return false;
+			}
+			SW.worker = serviceWorker;
+			SW.registration = registration;
+			SW.init();
+			console.log("Service worker state changed:", serviceWorker.state);
+			serviceWorker.addEventListener("statechange", (_) => {
+				console.log("Service worker state changed:", serviceWorker.state);
+			});
+			return true;
+		};
+
+		const existing = await navigator.serviceWorker.getRegistration("/");
+		if (bindRegistration(existing)) {
+			return;
+		}
+		if (!navigator.onLine) {
+			console.log("[SW] offline cold start: skip register until online");
+			window.addEventListener("online", () => {
+				SW.start().catch((error) => console.error("[SW] delayed start failed:", error));
+			}, {once: true});
+			return;
+		}
+		return new Promise<void>((res, reject) => {
 			navigator.serviceWorker
 				.register("/service.js", {
 					scope: "/",
 					updateViaCache: "none",
 				})
 				.then((registration) => {
-					let serviceWorker: ServiceWorker | undefined;
-					if (registration.installing) {
-						serviceWorker = registration.installing;
-						console.log("Service worker: installing");
-					} else if (registration.waiting) {
-						serviceWorker = registration.waiting;
-						console.log("Service worker: waiting");
-					} else if (registration.active) {
-						serviceWorker = registration.active;
-						console.log("Service worker: active");
-					}
-					SW.worker = serviceWorker;
-					SW.registration = registration;
-					SW.init();
-
-					if (serviceWorker) {
-						console.log("Service worker state changed:", serviceWorker.state);
-						serviceWorker.addEventListener("statechange", (_) => {
-							console.log("Service worker state changed:", serviceWorker.state);
-						});
+					if (bindRegistration(registration)) {
 						res();
+						return;
 					}
-				});
+					res();
+				})
+				.catch(reject);
 		});
 	}
 	static setMode(mode: ServiceWorkerMode) {

@@ -17,6 +17,12 @@ class I18n {
 	});
 	static async create(lang: string) {
 		try {
+			if (!navigator.onLine) {
+				this.lang = "en";
+				this.translations = [jsonType as unknown as translation];
+				res();
+				return;
+			}
 			if (!(lang + ".json" in langs)) {
 				if (lang.includes("-")) lang = lang.split("-")[0];
 				if (!(lang + ".json" in langs)) {
@@ -41,6 +47,8 @@ class I18n {
 			this.translations = translations;
 		} catch (e) {
 			console.error("[i18n] Failed to load translations, continuing with empty:", e);
+			this.lang = "en";
+			this.translations = [jsonType as unknown as translation];
 		}
 		res();
 	}

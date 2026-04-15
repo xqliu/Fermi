@@ -2145,9 +2145,14 @@ class Localuser {
 			if (!guild) {
 				return;
 			}
-			await guild.loadChannel(channelId || undefined, true, messageId);
-			if (channelId) {
-				this.channelfocus = this.channelids.get(channelId);
+			try {
+				await guild.loadChannel(channelId || undefined, true, messageId);
+				if (channelId) {
+					this.channelfocus = this.channelids.get(channelId);
+				}
+			} catch (error) {
+				console.warn("[offline] failed to restore requested route, falling back", error);
+				await guild.loadChannel(undefined, false);
 			}
 		}
 		// Restore typebox content saved before reconnect
