@@ -5,10 +5,16 @@ import {messageFrom, messageTo} from "./utils/serviceType";
 const BUILD_VERSION = "__BUILD_VERSION__";
 const SHELL_CACHE_PREFIX = "cache-";
 const CURRENT_SHELL_CACHE = `${SHELL_CACHE_PREFIX}${BUILD_VERSION}`;
+const REQUIRED_SHELL_PATHS = ["/app.html", "/index.js", "/getupdates"];
 console.log("[SW] version:", BUILD_VERSION);
 
 async function getActiveShellCacheName() {
 	return CURRENT_SHELL_CACHE;
+}
+async function getShellCacheNamesNewestFirst(preferred = CURRENT_SHELL_CACHE) {
+	const keys = (await caches.keys()).filter((key) => key.startsWith(SHELL_CACHE_PREFIX));
+	const rest = keys.filter((key) => key !== preferred).reverse();
+	return [preferred, ...rest];
 }
 async function deleteOldShellCaches(keep = CURRENT_SHELL_CACHE) {
 	const keys = await caches.keys();
@@ -28,7 +34,8 @@ async function clearAllShellCaches() {
 }
 async function hasCurrentShellCache() {
 	const cache = await caches.open(CURRENT_SHELL_CACHE);
-	return !!(await cache.match("/getupdates"));
+	const matches = await Promise.all(REQUIRED_SHELL_PATHS.map((path) => cache.match(new URL(path, self.location.origin))));
+	return matches.every(Boolean);
 }
 type files = {[key: string]: string | files};
 async function getAllFiles() {
@@ -73,6 +80,21 @@ async function getFromCache(request: URL, cacheName?: string) {
 	}
 	const cache = await caches.open(port ? "cdn" : cacheName || (await getActiveShellCacheName()));
 	return cache.match(request);
+}
+async function getFromAnyShellCache(request: URL, preferredCacheName?: string) {
+	request = new URL(request, self.location.href);
+	const port = rMap.get(request.host);
+	if (port) {
+		const cache = await caches.open("cdn");
+		return cache.match(request);
+	}
+	for (const cacheName of await getShellCacheNamesNewestFirst(preferredCacheName)) {
+		const cache = await caches.open(cacheName);
+		const match = await cache.match(request);
+		if (match) {
+			return match;
+		}
+	}
 }
 async function putInCache(request: URL | string, response: Response, cacheName?: string) {
 	request = new URL(request, self.location.href);
@@ -218,7 +240,7 @@ async function getCachedNavigationFallback(req: Request) {
 	}
 	paths.add("/app.html");
 	for (const path of paths) {
-		const cached = await getFromCache(new URL(path, self.location.origin));
+		const cached = await getFromAnyShellCache(new URL(path, self.location.origin));
 		if (cached) {
 			return cached;
 		}
@@ -273,7 +295,7 @@ async function getfile(req: Request): Promise<Response> {
 		} catch (e) {
 			console.error("[SW] fetch failed for", req.url, e);
 			// Try cache fallback before giving up
-			const cached = await getFromCache(new URL(toPath(req.url), self.location.origin));
+			const cached = await getFromAnyShellCache(new URL(toPath(req.url), self.location.origin));
 			if (cached) return cached;
 			if (samedomain(req.url) && isDocumentRequest(req)) {
 				const navFallback = await getCachedNavigationFallback(req);
@@ -303,6 +325,10 @@ async function getfile(req: Request): Promise<Response> {
 		return responseFromNetwork;
 	} catch (e) {
 		console.error(e);
+		const cached = await getFromAnyShellCache(new URL(path, self.location.origin));
+		if (cached) {
+			return cached;
+		}
 		if (isDocumentRequest(req)) {
 			const navFallback = await getCachedNavigationFallback(req);
 			if (navFallback) return navFallback;
