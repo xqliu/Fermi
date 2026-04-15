@@ -101,6 +101,43 @@
 						setTimeout(function() { log('⚠️ 30s timeout - JS可能没加载'); d.style.color = '#f04747'; d.style.fontSize = '12px'; }, 30000);
 						// Detect if module script loads
 						window.__moduleLoaded = false;
+						window.__cacheBootstrapTried = false;
+						window.__bootFromShellCache = async function() {
+							if (window.__cacheBootstrapTried || window.__moduleLoaded || !('caches' in window)) return false;
+							window.__cacheBootstrapTried = true;
+							log('尝试从本地缓存恢复 JS');
+							try {
+								const cacheNames = (await caches.keys())
+									.filter(function(name) { return name.indexOf('cache-') === 0; })
+									.sort()
+									.reverse();
+								for (const cacheName of cacheNames) {
+									const cache = await caches.open(cacheName);
+									const reqUrl = new URL('/index.js', window.location.origin).toString();
+									const resp = await cache.match(reqUrl) || await cache.match('/index.js');
+									if (!resp) continue;
+									let code = await resp.text();
+									code = code
+										.replaceAll('import("./index.js")', 'import("/index.js")')
+										.replaceAll('import("../index.js")', 'import("/index.js")');
+									const blobUrl = URL.createObjectURL(new Blob([code], { type: 'text/javascript' }));
+									try {
+										await import(blobUrl);
+										log('已从本地缓存启动 JS');
+										return true;
+									} finally {
+										setTimeout(function() { URL.revokeObjectURL(blobUrl); }, 10000);
+									}
+								}
+								log('本地缓存里没有 index.js');
+							} catch (e) {
+								log('缓存启动失败: ' + (e && e.message ? e.message : e));
+							}
+							return false;
+						};
+						setTimeout(function() {
+							if (!window.__moduleLoaded) window.__bootFromShellCache();
+						}, 3000);
 						setTimeout(function() {
 							if (!window.__moduleLoaded) log('index.js 未执行');
 						}, 5000);
