@@ -3246,7 +3246,7 @@ class Localuser {
 									b.classList.add("loading");
 									b.textContent = "";
 								}
-								safeReload();
+								window.location.href = "/reset";
 							});
 						}
 						d.show();
@@ -3275,9 +3275,9 @@ class Localuser {
 						const b = applyBtn.buttonHtml;
 						if (b) {
 							b.disabled = true;
-							b.textContent = "重新加载...";
+							b.textContent = "正在切换新版本...";
 						}
-						safeReload();
+						window.location.href = "/reset";
 					});
 				}
 
