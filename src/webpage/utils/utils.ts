@@ -7,6 +7,7 @@ import {isLoopback, trimTrailingSlashes} from "./netUtils";
 import {getLocalSettings, ServiceWorkerMode, setLocalSettings} from "./storage/localSettings";
 import {getPreferences} from "./storage/userPreferences";
 import {getDeveloperSettings} from "./storage/devSettings";
+import {FERMI_VERSION} from "../version.js";
 
 fix();
 const apiDoms = new Set<string>();
@@ -1085,7 +1086,6 @@ export class SW {
 				xhr.onerror = () => reject();
 				xhr.send();
 			});
-			const {FERMI_VERSION} = await import("../index.js");
 			if (serverVersion !== FERMI_VERSION) {
 				console.log("[Update] New version:", serverVersion, "running:", FERMI_VERSION);
 				this.needsUpdate = true;

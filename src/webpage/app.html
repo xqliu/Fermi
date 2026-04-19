@@ -136,10 +136,7 @@
 									const reqUrl = new URL('/index.js', window.location.origin).toString();
 									const resp = await cache.match(reqUrl) || await cache.match('/index.js');
 									if (!resp) continue;
-									let code = await resp.text();
-									code = code
-										.replaceAll('import("./index.js")', 'import("/index.js")')
-										.replaceAll('import("../index.js")', 'import("/index.js")');
+									const code = await resp.text();
 									const blobUrl = URL.createObjectURL(new Blob([code], { type: 'text/javascript' }));
 									try {
 										window.__bootedFromShellCache = cacheName;

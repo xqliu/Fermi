@@ -38,6 +38,7 @@ import {Role} from "./role.js";
 import {VoiceFactory, voiceStatusStr} from "./voice.js";
 import {I18n, langmap} from "./i18n.js";
 import {Emoji} from "./emoji.js";
+import {FERMI_VERSION} from "./version.js";
 import {Play} from "./audio/play.js";
 import {Message} from "./message.js";
 import {badgeArr} from "./Dbadges.js";
@@ -3364,7 +3365,6 @@ class Localuser {
 		}
 			{
 				const update = settings.addButton(I18n.localuser.updateSettings());
-				const {FERMI_VERSION} = await import("./index.js");
 				const localVer = FERMI_VERSION.substring(0, 8);
 				const fetchLatestVersion = async (): Promise<string> =>
 					await new Promise<string>((resolve) => {

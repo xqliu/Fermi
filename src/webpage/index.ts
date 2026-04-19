@@ -1,5 +1,4 @@
-// @ts-ignore — __BUILD_VERSION__ replaced at build time
-export const FERMI_VERSION: string = "__BUILD_VERSION__";
+import {FERMI_VERSION} from "./version.js";
 // @ts-ignore — signal to inline debug that module loaded
 window.__moduleLoaded = true;
 // @ts-ignore

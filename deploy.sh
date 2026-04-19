@@ -30,10 +30,13 @@ python3 - <<'PY'
 from pathlib import Path
 import subprocess
 revision = subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip()
-app = Path("dist/webpage/app.html")
-text = app.read_text()
-if "__BUILD_VERSION__" in text:
-    app.write_text(text.replace("__BUILD_VERSION__", revision))
+for relpath in ("dist/webpage/app.html", "dist/webpage/version.js"):
+    target = Path(relpath)
+    if not target.exists():
+        continue
+    text = target.read_text()
+    if "__BUILD_VERSION__" in text:
+        target.write_text(text.replace("__BUILD_VERSION__", revision))
 PY
 
 echo "Deploying..."
