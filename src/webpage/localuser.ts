@@ -972,6 +972,22 @@ class Localuser {
 			this.ws = undefined;
 			console.log(`[ws-close] code=${event.code} reason="${event.reason}" managedReconnect=${managedReconnect} errorBackoff=${this.errorBackoff}`);
 			rejecty(new Error(`WebSocket closed: ${event.code}${event.reason ? ` (${event.reason})` : ""}`));
+			if (event.code === 4003 || event.code === 4004) {
+				console.warn(`[ws-close] auth failure, clearing local session and returning to login: ${event.code} ${event.reason}`);
+				if (this.reconnectTimeout) {
+					clearTimeout(this.reconnectTimeout);
+					this.reconnectTimeout = undefined;
+				}
+				this._stopReconnectBanner();
+				this._reconnecting = false;
+				try {
+					this.userinfo?.remove();
+				} catch (error) {
+					console.error("[ws-close] failed to clear invalid local session", error);
+				}
+				safeNavigate("/login");
+				return;
+			}
 			if (managedReconnect) {
 				// managed reconnect closed — the parent _checkAndReconnect's catch
 				// will handle retry via fresh identify, so don't start a competing one.

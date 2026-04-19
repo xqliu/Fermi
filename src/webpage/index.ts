@@ -280,6 +280,25 @@ if (_forceChannelsInit || window.location.pathname.startsWith("/channels")) {
 		let restoredOffline = false;
 		let onlineRetryRegistered = false;
 		let delayedRetryScheduled = false;
+		if (navigator.onLine && thisUser.userinfo?.token) {
+			try {
+				const authCheck = await fetch(thisUser.info.api + "/users/@me?_=" + Date.now(), {
+					headers: {Authorization: thisUser.userinfo.token},
+					cache: "no-store",
+				});
+				if (authCheck.status === 401 || authCheck.status === 403) {
+					console.warn(`[startup] stored token rejected by REST auth check: ${authCheck.status}`);
+					thisUser.userinfo.remove();
+					safeNavigate("/login");
+					throw new Error("AUTH_PRECHECK_REJECTED");
+				}
+			} catch (error) {
+				if (error instanceof Error && error.message === "AUTH_PRECHECK_REJECTED") {
+					throw error;
+				}
+				console.warn("[startup] auth preflight failed, continuing to websocket init", error);
+			}
+		}
 		// Pre-fetch defaults (fire-and-forget, used after init)
 		if (navigator.onLine) {
 			fetch("/user-defaults.json").then(r => r.ok ? r.json() : null).then(d => { _defaultsCfg = d; }).catch(() => {});
@@ -411,11 +430,16 @@ if (_forceChannelsInit || window.location.pathname.startsWith("/channels")) {
 			};
 			connectWithRetry();
 		} catch (e) {
-			_debugLog(`启动异常: ${e instanceof Error ? e.message : e}`);
-			console.error(e);
-			hideLoadingOverlay();
-			loaddesc.textContent = I18n.accountNotStart();
-			thisUser = new Localuser(-1);
+			if (e instanceof Error && e.message === "AUTH_PRECHECK_REJECTED") {
+				hideLoadingOverlay();
+				thisUser = new Localuser(-1);
+			} else {
+				_debugLog(`启动异常: ${e instanceof Error ? e.message : e}`);
+				console.error(e);
+				hideLoadingOverlay();
+				loaddesc.textContent = I18n.accountNotStart();
+				thisUser = new Localuser(-1);
+			}
 		}
 	//TODO move this to the channel/guild class, this is a weird spot
 	const menu = new Contextmenu<void, void>("create rightclick");
