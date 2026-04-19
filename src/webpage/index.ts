@@ -210,7 +210,7 @@ if ("serviceWorker" in navigator) {
 
 import {Localuser} from "./localuser.js";
 import {Contextmenu} from "./contextmenu.js";
-import {mobile, Specialuser, safeReload} from "./utils/utils.js";
+import {mobile, Specialuser, safeReload, standalonePWA} from "./utils/utils.js";
 import {setTheme} from "./utils/utils.js";
 import {MarkDown} from "./markdown.js";
 import {Message} from "./message.js";
@@ -280,7 +280,11 @@ if (_forceChannelsInit || window.location.pathname.startsWith("/channels")) {
 	const hasGuardState =
 		history.state && typeof history.state === "object" && "guard" in history.state;
 	if (!hasGuardState) {
-		history.pushState({guard: true}, "", window.location.href);
+		if (standalonePWA) {
+			history.replaceState({guard: true}, "", window.location.href);
+		} else {
+			history.pushState({guard: true}, "", window.location.href);
+		}
 	}
 
 	let templateID = new URLSearchParams(window.location.search).get("templateID");
@@ -658,7 +662,11 @@ if (_forceChannelsInit || window.location.pathname.startsWith("/channels")) {
 				const toggle = document.getElementById("maintoggle") as HTMLInputElement;
 				if (toggle && toggle.checked) toggle.checked = false;
 			}
-			history.pushState({guard: true}, "", window.location.href);
+			if (standalonePWA) {
+				history.replaceState({guard: true}, "", window.location.href);
+			} else {
+				history.pushState({guard: true}, "", window.location.href);
+			}
 		}
 	});
 	let nonceMap = new Map<string, string>();

@@ -374,16 +374,18 @@ const mobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)
 const iOS = /iPhone|iPad|iPod/i.test(navigator.userAgent)
 	|| (navigator.maxTouchPoints > 1 && /Macintosh/i.test(navigator.userAgent));
 // iOS standalone PWA: use replaceState to avoid swipe-back gesture conflicts
-const isStandalone = window.matchMedia("(display-mode: standalone)").matches
-	|| (navigator as any).standalone === true;
+const standalonePWA =
+	mobile
+	&& (window.matchMedia("(display-mode: standalone)").matches
+		|| (navigator as any).standalone === true);
 function navPushState(data: any, unused: string, url: string) {
-	if (mobile && isStandalone) {
+	if (standalonePWA) {
 		history.replaceState(data, unused, url);
 	} else {
 		history.pushState(data, unused, url);
 	}
 }
-export {mobile, iOS, navPushState};
+export {mobile, iOS, standalonePWA, navPushState};
 
 /**
  * iOS PWA standalone: location.reload()/replace()/href can silently fail.
@@ -412,6 +414,31 @@ export function safeNavigate(url: string): void {
 		const current = new URL(window.location.href);
 		return sameLocation(current, start) && !sameLocation(current, target);
 	};
+	if (standalonePWA) {
+		window.location.replace(target.toString());
+		if (target.origin === start.origin) {
+			pendingNavigateTimers.push(
+				window.setTimeout(() => {
+					if (!shouldKeepTrying()) return;
+					history.replaceState(history.state, "", target.toString());
+					window.location.reload();
+				}, 1000),
+			);
+		}
+		pendingNavigateTimers.push(
+			window.setTimeout(() => {
+				if (shouldKeepTrying()) window.location.replace(target.toString());
+			}, 2500),
+		);
+		if (target.origin === start.origin) {
+			pendingNavigateTimers.push(
+				window.setTimeout(() => {
+					if (shouldKeepTrying()) window.location.replace("/reset");
+				}, 5000),
+			);
+		}
+		return;
+	}
 	window.location.href = target.toString();
 	pendingNavigateTimers.push(
 		window.setTimeout(() => {
