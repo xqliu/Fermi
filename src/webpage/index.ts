@@ -100,7 +100,7 @@ if ("serviceWorker" in navigator) {
 
 import {Localuser} from "./localuser.js";
 import {Contextmenu} from "./contextmenu.js";
-import {mobile, Specialuser, safeReload, safeNavigate} from "./utils/utils.js";
+import {mobile, Specialuser, safeReload} from "./utils/utils.js";
 import {setTheme} from "./utils/utils.js";
 import {MarkDown} from "./markdown.js";
 import {Message} from "./message.js";
@@ -274,31 +274,12 @@ if (_forceChannelsInit || window.location.pathname.startsWith("/channels")) {
 			thisUser = new Localuser(Localuser.users.users[current]);
 		}
 
-		regSwap(thisUser);
-		loaddesc.textContent = "正在连接服务器...";
-		let _defaultsCfg: any = null;
-		let restoredOffline = false;
-		let onlineRetryRegistered = false;
-		let delayedRetryScheduled = false;
-		if (navigator.onLine && thisUser.userinfo?.token) {
-			try {
-				const authCheck = await fetch(thisUser.info.api + "/users/@me?_=" + Date.now(), {
-					headers: {Authorization: thisUser.userinfo.token},
-					cache: "no-store",
-				});
-				if (authCheck.status === 401 || authCheck.status === 403) {
-					console.warn(`[startup] stored token rejected by REST auth check: ${authCheck.status}`);
-					thisUser.userinfo.remove();
-					safeNavigate("/login");
-					throw new Error("AUTH_PRECHECK_REJECTED");
-				}
-			} catch (error) {
-				if (error instanceof Error && error.message === "AUTH_PRECHECK_REJECTED") {
-					throw error;
-				}
-				console.warn("[startup] auth preflight failed, continuing to websocket init", error);
-			}
-		}
+			regSwap(thisUser);
+			loaddesc.textContent = "正在连接服务器...";
+			let _defaultsCfg: any = null;
+			let restoredOffline = false;
+			let onlineRetryRegistered = false;
+			let delayedRetryScheduled = false;
 		// Pre-fetch defaults (fire-and-forget, used after init)
 		if (navigator.onLine) {
 			fetch("/user-defaults.json").then(r => r.ok ? r.json() : null).then(d => { _defaultsCfg = d; }).catch(() => {});
@@ -333,26 +314,28 @@ if (_forceChannelsInit || window.location.pathname.startsWith("/channels")) {
 			if (!fromCache) {
 				thisUser.subscribePush().catch((e: any) => console.warn("[push] subscribe failed:", e));
 			}
-		};
-		restoredOffline = await Promise.race<boolean>([
-			thisUser.restoreOfflineReady(),
-			new Promise<boolean>((resolve) =>
-				setTimeout(() => {
-					console.warn("[offline] restoreOfflineReady timed out after 3s");
-					resolve(false);
-				}, 3000),
-			),
-		]);
-		if (restoredOffline) {
-			_debugLog("已恢复本地缓存，先显示本地数据");
-			try {
-				await finishLoading(true);
-			} catch (error) {
-				console.error("[offline] finishLoading(true) failed", error);
-				hideLoadingOverlay();
-				throw error;
+			};
+			if (!navigator.onLine) {
+				restoredOffline = await Promise.race<boolean>([
+					thisUser.restoreOfflineReady(),
+					new Promise<boolean>((resolve) =>
+						setTimeout(() => {
+							console.warn("[offline] restoreOfflineReady timed out after 3s");
+							resolve(false);
+						}, 3000),
+					),
+				]);
+				if (restoredOffline) {
+					_debugLog("已恢复本地缓存，先显示本地数据");
+					try {
+						await finishLoading(true);
+					} catch (error) {
+						console.error("[offline] finishLoading(true) failed", error);
+						hideLoadingOverlay();
+						throw error;
+					}
+				}
 			}
-		}
 		let retryCount = 0;
 		const waitForOnline = () => {
 			_debugLog("当前离线，跳过 WS 连接，等待网络恢复");
@@ -430,16 +413,11 @@ if (_forceChannelsInit || window.location.pathname.startsWith("/channels")) {
 			};
 			connectWithRetry();
 		} catch (e) {
-			if (e instanceof Error && e.message === "AUTH_PRECHECK_REJECTED") {
-				hideLoadingOverlay();
-				thisUser = new Localuser(-1);
-			} else {
-				_debugLog(`启动异常: ${e instanceof Error ? e.message : e}`);
-				console.error(e);
-				hideLoadingOverlay();
-				loaddesc.textContent = I18n.accountNotStart();
-				thisUser = new Localuser(-1);
-			}
+			_debugLog(`启动异常: ${e instanceof Error ? e.message : e}`);
+			console.error(e);
+			hideLoadingOverlay();
+			loaddesc.textContent = I18n.accountNotStart();
+			thisUser = new Localuser(-1);
 		}
 	//TODO move this to the channel/guild class, this is a weird spot
 	const menu = new Contextmenu<void, void>("create rightclick");
