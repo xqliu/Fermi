@@ -2657,6 +2657,19 @@ class Channel extends SnowFlake {
 		}
 
 		const messages = document.getElementById("scrollWrap") as HTMLDivElement;
+		const reusingCurrentChannel =
+			this.localuser.channelfocus === this && !aroundMessage && !this.isForum();
+		const hasRenderedMessageView = Boolean(
+			messages.querySelector(".scroller, .messagediv, #removetitle"),
+		);
+		if (reusingCurrentChannel && !this.localuser.needsBackfillOnce && hasRenderedMessageView) {
+			if (this.lastmessageid) {
+				this.infinite.focus(aroundMessage || this.lastmessageid, !!aroundMessage, true).catch((error) => {
+					console.warn("[channel] fast-path focus failed", error);
+				});
+			}
+			return;
+		}
 		const messageContainers = Array.from(messages.getElementsByClassName("messagecontainer"));
 		for (const thing of messageContainers) {
 			thing.remove();
@@ -2728,7 +2741,7 @@ class Channel extends SnowFlake {
 				this.localuser.channelfocus = this;
 				prev.parent?.createguildHTML();
 			}
-		} else if (this.localuser.channelfocus === this && !aroundMessage && !this.isForum()) {
+		} else if (reusingCurrentChannel) {
 			if (this.lastmessageid)
 				this.infinite.focus(aroundMessage || this.lastmessageid, !!aroundMessage, true);
 			// Normal fast-path: avoid rebuilding if already focused.
