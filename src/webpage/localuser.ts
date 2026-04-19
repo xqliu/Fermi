@@ -810,7 +810,8 @@ class Localuser {
 			this.idToPrev.clear();
 			this.idToNext.clear();
 		}
-		const doComp = DecompressionStream && !getDeveloperSettings().gatewayCompression;
+		const supportsCompression = typeof DecompressionStream !== "undefined";
+		const doComp = supportsCompression && !getDeveloperSettings().gatewayCompression;
 		const ws = new WebSocket(
 			(resume ? this.resume_gateway_url : this.serverurls.gateway.toString()) +
 				"?encoding=json&v=9" +
@@ -818,11 +819,54 @@ class Localuser {
 		);
 		this.ws = ws;
 		this._registerNetworkListeners();
+		let sentHandshake = false;
+		const sendHandshake = () => {
+			if (sentHandshake || this.ws !== ws || ws.readyState !== WebSocket.OPEN) {
+				return;
+			}
+			sentHandshake = true;
+			if (resume) {
+				ws.send(
+					JSON.stringify({
+						op: 6,
+						d: {
+							token: this.token,
+							session_id: this.session_id,
+							seq: this.lastSequence,
+						},
+					}),
+				);
+			} else {
+				ws.send(
+					JSON.stringify({
+						op: 2,
+						d: {
+							token: this.token,
+							capabilities: 16381,
+							properties: {
+								browser: "Fermi",
+								client_build_number: 0, //might update this eventually lol
+								release_channel: "Custom",
+								browser_user_agent: navigator.userAgent,
+							},
+							compress: doComp,
+							presence: {
+								status: sessionStorage.getItem("status") || "online",
+								since: null, //new Date().getTime()
+								activities: [],
+								afk: false,
+							}, //TODO think this through, it's just a stupid large number to fix op 8 requests
+							large_threshold: 100000000,
+						},
+					}),
+				);
+			}
+		};
 		let ds: DecompressionStream;
 		let w: WritableStreamDefaultWriter;
 		let arr: Uint8Array;
 
-		if (DecompressionStream) {
+		if (doComp) {
 			ds = new DecompressionStream("deflate");
 			w = ds.writable.getWriter();
 
@@ -833,46 +877,10 @@ class Localuser {
 			rejecty = rej;
 			ws.addEventListener("open", (_event) => {
 				this._lastWsActivityAt = Date.now();
-				console.log(`[ws-open] resume=${resume} url=${ws.url.substring(0, 60)}...`);
-				if (resume) {
-					ws.send(
-						JSON.stringify({
-							op: 6,
-							d: {
-								token: this.token,
-								session_id: this.session_id,
-								seq: this.lastSequence,
-							},
-						}),
-					);
-				} else {
-					ws.send(
-						JSON.stringify({
-							op: 2,
-							d: {
-								token: this.token,
-								capabilities: 16381,
-								properties: {
-									browser: "Fermi",
-									client_build_number: 0, //might update this eventually lol
-									release_channel: "Custom",
-									browser_user_agent: navigator.userAgent,
-								},
-								compress: Boolean(DecompressionStream),
-								presence: {
-									status: sessionStorage.getItem("status") || "online",
-									since: null, //new Date().getTime()
-									activities: [],
-									afk: false,
-								}, //TODO think this through, it's just a stupid large number to fix op 8 requests
-								large_threshold: 100000000,
-							},
-						}),
-					);
-				}
+				console.log(`[ws-open] resume=${resume} comp=${doComp} url=${ws.url.substring(0, 60)}...`);
 			});
 
-			if (DecompressionStream) {
+			if (doComp) {
 				(async () => {
 					let build = "";
 					for await (const data of ds.readable.tee()[0].pipeThrough(new TextDecoderStream())) {
@@ -886,6 +894,9 @@ class Localuser {
 						}
 						try {
 							await this.handleEvent(temp);
+							if (temp.op === 10) {
+								sendHandshake();
+							}
 							if (temp.op === 0 && (temp.t === "READY" || temp.t === "RESUMED")) {
 								console.log("in here?");
 								returny();
@@ -912,6 +923,10 @@ class Localuser {
 				let temp: {op: number; t: string};
 				try {
 					if (event.data instanceof Blob) {
+						if (!doComp) {
+							console.error("[ws] unexpected binary frame while compression is disabled");
+							return;
+						}
 						const buff = await event.data.arrayBuffer();
 						const array = new Uint8Array(buff);
 
@@ -939,6 +954,9 @@ class Localuser {
 					}
 
 					await this.handleEvent(temp as readyjson);
+					if (temp.op === 10) {
+						sendHandshake();
+					}
 					if (temp.op === 0 && (temp.t === "READY" || temp.t === "RESUMED")) {
 						returny();
 					}
@@ -953,7 +971,7 @@ class Localuser {
 		ws.addEventListener("close", async (event) => {
 			this.ws = undefined;
 			console.log(`[ws-close] code=${event.code} reason="${event.reason}" managedReconnect=${managedReconnect} errorBackoff=${this.errorBackoff}`);
-			rejecty(new Error(`WebSocket closed: ${event.code}`));
+			rejecty(new Error(`WebSocket closed: ${event.code}${event.reason ? ` (${event.reason})` : ""}`));
 			if (managedReconnect) {
 				// managed reconnect closed — the parent _checkAndReconnect's catch
 				// will handle retry via fresh identify, so don't start a competing one.
