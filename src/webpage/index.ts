@@ -26,16 +26,16 @@ window.__renderWsDiag = () => {
 		// @ts-ignore
 		const state = window.__diagState || {};
 		const parts = [
-			`boot:${state.startup || "?"}`,
-			state.helloMs ? `hello:${state.helloMs}` : "",
-			state.readyMs ? `ready:${state.readyMs}` : "",
-			state.initMs ? `init:${state.initMs}` : "",
-			state.chanMs ? `chan:${state.chanMs}` : "",
-			state.netMs ? `net:${state.netMs}` : "",
-			state.loadMs ? `load:${state.loadMs}` : "",
+			`b:${state.startup || "?"}`,
+			state.helloMs ? `h:${state.helloMs}` : "",
+			state.readyMs ? `r:${state.readyMs}` : "",
+			state.initMs ? `i:${state.initMs}` : "",
+			state.chanMs ? `c:${state.chanMs}` : "",
+			state.netMs ? `n:${state.netMs}` : "",
+			state.loadMs ? `l:${state.loadMs}` : "",
 			`ws:${state.ws || "?"}`,
 			`idle:${state.idleS ?? "?"}s`,
-			`reconn:${Boolean(state.reconn)}`,
+			`re:${Boolean(state.reconn)}`,
 			`hb:${Boolean(state.hb)}`,
 		].filter(Boolean);
 		diag.textContent = parts.join(" ");
@@ -61,17 +61,45 @@ window.__startupMark = (stage: string, data?: any) => {
 		const delta = Math.round(performance.now() - window.__startupStartedAt);
 		const suffix = data === undefined ? "" : " " + (typeof data === "string" ? data : JSON.stringify(data));
 		const msg = `t+${delta}ms ${stage}${suffix}`;
-		const patch: any = {startup: stage.replaceAll(" ", "-")};
-		if (stage === "ws hello" && data?.sinceOpenMs !== undefined) patch.helloMs = `${data.sinceOpenMs}ms`;
-		if ((stage === "ws ready" || stage === "ws resumed") && data?.sinceOpenMs !== undefined) patch.readyMs = `${data.sinceOpenMs}ms`;
-		if (stage === "finishLoading init done" && data?.ms !== undefined) patch.initMs = `${data.ms}ms`;
+		const stageCodeMap: Record<string, string> = {
+			"boot start": "boot",
+			"i18n ready": "i18n",
+			"user selected": "usr",
+			"offline restore start": "off",
+			"offline restore ready applied": "offok",
+			"ws attempt start": "wsa",
+			"ws attempt done": "wsok",
+			"ws connect start": "wsc",
+			"ws open": "wso",
+			"ws hello": "hl",
+			"ws identify sent": "id",
+			"ws resume sent": "rs",
+			"ws ready": "rdy",
+			"ws resumed": "res",
+			"init start": "ini",
+			"init guild missing": "gmiss",
+			"init route restore failed": "rfail",
+			"finishLoading start": "fin",
+			"finishLoading init done": "find",
+			"loading complete": "done",
+			"channel getHTML start": "chs",
+			"channel getHTML done": "chd",
+			"channel cache batch": "cc",
+			"channel network batch": "cn",
+			"initial channel load timeout": "cto",
+			"fallback channel load timeout": "fto",
+		};
+		const patch: any = {startup: stageCodeMap[stage] || stage.replaceAll(" ", "-")};
+		if (stage === "ws hello" && data?.sinceOpenMs !== undefined) patch.helloMs = `${data.sinceOpenMs}`;
+		if ((stage === "ws ready" || stage === "ws resumed") && data?.sinceOpenMs !== undefined) patch.readyMs = `${data.sinceOpenMs}`;
+		if (stage === "finishLoading init done" && data?.ms !== undefined) patch.initMs = `${data.ms}`;
 		if ((stage === "init channel load done" || stage === "init channel load timed out" || stage === "fallback channel load done" || stage === "fallback channel load timed out") && data?.ms !== undefined) {
-			patch.chanMs = `${data.ms}ms${stage.includes("timed out") ? "!" : ""}`;
+			patch.chanMs = `${data.ms}${stage.includes("timed out") ? "!" : ""}`;
 		}
 		if ((stage === "channel network batch" || stage === "channel cache batch") && data?.ms !== undefined) {
-			patch.netMs = `${data.ms}ms${data.count ? "/" + data.count : ""}`;
+			patch.netMs = `${data.ms}${data.count ? "/" + data.count : ""}`;
 		}
-		if (stage === "loading complete" && data?.ms !== undefined) patch.loadMs = `${data.ms}ms`;
+		if (stage === "loading complete" && data?.ms !== undefined) patch.loadMs = `${data.ms}`;
 		// @ts-ignore
 		if (window.__updateWsDiag) window.__updateWsDiag(patch);
 		console.log(`[startup-trace] ${msg}`);
