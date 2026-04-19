@@ -12,7 +12,8 @@ const FULL_SHELL_REQUIRED_PATHS = [
 	"/themes.css",
 	"/logo.svg",
 	"/manifest.json",
-	"/reset.html",
+	// reset.html is intentionally network-only: it is the emergency repair tool,
+	// so shell readiness must not depend on a cached copy of it.
 ];
 const FULL_SHELL_MARKER_PATH = "/__full-shell-ready__";
 console.log("[SW] version:", BUILD_VERSION);
