@@ -415,6 +415,8 @@ if (_forceChannelsInit || window.location.pathname.startsWith("/channels")) {
 			let delayedRetryScheduled = false;
 			let cacheFinishStarted = false;
 			let liveFinishStarted = false;
+			let cacheFinishPromise: Promise<void> | undefined;
+			let liveFinishPromise: Promise<void> | undefined;
 			let sharedPostLoadApplied = false;
 			let livePostLoadApplied = false;
 			let livePostLoadPromise: Promise<void> | undefined;
@@ -460,44 +462,76 @@ if (_forceChannelsInit || window.location.pathname.startsWith("/channels")) {
 			};
 			const finishLoading = async (fromCache = false) => {
 				if (fromCache) {
-					if (cacheFinishStarted || liveFinishStarted) return;
+					if (cacheFinishPromise) return cacheFinishPromise;
+					if (cacheFinishStarted) return;
+					if (liveFinishStarted) return;
 					cacheFinishStarted = true;
+					cacheFinishPromise = (async () => {
+						const finishStartedAt = performance.now();
+						try {
+							_startupMark("finishLoading start", {fromCache});
+							loaddesc.textContent = "正在加载本地缓存...";
+							thisUser.loaduser();
+							await thisUser.init();
+							_startupMark("finishLoading init done", {
+								fromCache,
+								ms: Math.round(performance.now() - finishStartedAt),
+							});
+							hideLoadingOverlay();
+							loaddesc.textContent = "本地缓存已加载";
+							console.log("loaded from cache");
+							_startupMark("loading complete", {
+								fromCache,
+								ms: Math.round(performance.now() - finishStartedAt),
+							});
+							applySharedPostLoad();
+						} catch (error) {
+							cacheFinishStarted = false;
+							throw error;
+						} finally {
+							cacheFinishPromise = undefined;
+						}
+					})();
+					return cacheFinishPromise;
 				} else {
+					if (liveFinishPromise) return liveFinishPromise;
 					if (liveFinishStarted) return;
 					liveFinishStarted = true;
-				}
-				const finishStartedAt = performance.now();
-				try {
-					if (!fromCache && cacheFinishStarted) {
-						await applyLivePostLoad();
-						return;
-					}
-					_startupMark("finishLoading start", {fromCache});
-					loaddesc.textContent = fromCache ? "正在加载本地缓存..." : "正在加载频道...";
-					thisUser.loaduser();
-					await thisUser.init();
-					_startupMark("finishLoading init done", {
-						fromCache,
-						ms: Math.round(performance.now() - finishStartedAt),
-					});
-					hideLoadingOverlay();
-					loaddesc.textContent = fromCache ? "本地缓存已加载" : I18n.loaded();
-					console.log(fromCache ? "loaded from cache" : "done loading");
-					_startupMark("loading complete", {
-						fromCache,
-						ms: Math.round(performance.now() - finishStartedAt),
-					});
-					applySharedPostLoad();
-					if (!fromCache) {
-						await applyLivePostLoad();
-					}
-				} catch (error) {
-					if (fromCache) {
-						cacheFinishStarted = false;
-					} else {
-						liveFinishStarted = false;
-					}
-					throw error;
+					liveFinishPromise = (async () => {
+						if (cacheFinishPromise) {
+							try {
+								await cacheFinishPromise;
+							} catch (error) {
+								console.warn("[init] cached startup handoff failed, continuing with live init", error);
+							}
+						}
+						const finishStartedAt = performance.now();
+						try {
+							_startupMark("finishLoading start", {fromCache});
+							loaddesc.textContent = "正在加载频道...";
+							thisUser.loaduser();
+							await thisUser.init();
+							_startupMark("finishLoading init done", {
+								fromCache,
+								ms: Math.round(performance.now() - finishStartedAt),
+							});
+							hideLoadingOverlay();
+							loaddesc.textContent = I18n.loaded();
+							console.log("done loading");
+							_startupMark("loading complete", {
+								fromCache,
+								ms: Math.round(performance.now() - finishStartedAt),
+							});
+							applySharedPostLoad();
+							await applyLivePostLoad();
+						} catch (error) {
+							liveFinishStarted = false;
+							throw error;
+						} finally {
+							liveFinishPromise = undefined;
+						}
+					})();
+					return liveFinishPromise;
 				}
 			};
 			const restoreOfflineFallback = async (reason: string): Promise<boolean> => {
