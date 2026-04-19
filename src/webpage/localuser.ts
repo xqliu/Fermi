@@ -3246,7 +3246,7 @@ class Localuser {
 									b.classList.add("loading");
 									b.textContent = "";
 								}
-								window.location.href = "/reset";
+								await SW.applyUpdate();
 							});
 						}
 						d.show();
@@ -3277,7 +3277,7 @@ class Localuser {
 							b.disabled = true;
 							b.textContent = "正在切换新版本...";
 						}
-						window.location.href = "/reset";
+						await SW.applyUpdate();
 					});
 				}
 

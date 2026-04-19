@@ -952,7 +952,7 @@ if (_forceChannelsInit || window.location.pathname.startsWith("/channels")) {
 	if (updateIcon) {
 		new Hover(() => updateIcon.textContent || "").addEvent(updateIcon);
 		updateIcon.onclick = () => {
-			safeReload();
+			SW.applyUpdate();
 		};
 	}
 }
