@@ -279,8 +279,19 @@
 				Upload your files here!
 			</div>
 		</div>
+		<script>
+			(function() {
+				const script = document.createElement("script");
+				script.type = "module";
+				script.src = "/index.js?_cv=" + Date.now();
+				script.onerror = function(error) {
+					if (window.__loadingDebug) window.__loadingDebug("index.js 加载失败");
+					console.error("[boot] index.js load failed", error);
+				};
+				document.body.appendChild(script);
+			})();
+		</script>
 	</body>
-	<script src="/index.js" type="module"></script>
 	<!-- <script src="/service.js" --->
 	<!-- <script src="/audio/worklet/worklet.js" --->
 	<!-- <script src="/utils/dirrWorker.js" --->
