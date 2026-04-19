@@ -277,8 +277,10 @@ export interface CustomHTMLDivElement extends HTMLDivElement {
 if (_forceChannelsInit || window.location.pathname.startsWith("/channels")) {
 	// Push a guard entry so swipe-back can never leave the app
 	// (catches any leftover login/app entries in history)
-	if (!history.state) {
-		history.replaceState({guard: true}, "", window.location.href);
+	const hasGuardState =
+		history.state && typeof history.state === "object" && "guard" in history.state;
+	if (!hasGuardState) {
+		history.pushState({guard: true}, "", window.location.href);
 	}
 
 	let templateID = new URLSearchParams(window.location.search).get("templateID");
@@ -654,9 +656,9 @@ if (_forceChannelsInit || window.location.pathname.startsWith("/channels")) {
 			// show sidebar on mobile, and always re-push to prevent leaving the app
 			if (mobile) {
 				const toggle = document.getElementById("maintoggle") as HTMLInputElement;
-				if (toggle && !toggle.checked) toggle.checked = true;
+				if (toggle && toggle.checked) toggle.checked = false;
 			}
-			history.pushState(null, "", window.location.href);
+			history.pushState({guard: true}, "", window.location.href);
 		}
 	});
 	let nonceMap = new Map<string, string>();
