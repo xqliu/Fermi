@@ -7,7 +7,12 @@ window.__startupStartedAt = performance.now();
 // @ts-ignore
 window.__diagState = {
 	startup: "booting",
-	startupLines: [] as string[],
+	helloMs: "",
+	readyMs: "",
+	initMs: "",
+	chanMs: "",
+	netMs: "",
+	loadMs: "",
 	ws: "no-ws",
 	idleS: 0,
 	reconn: false,
@@ -22,13 +27,18 @@ window.__renderWsDiag = () => {
 		const state = window.__diagState || {};
 		const parts = [
 			`boot:${state.startup || "?"}`,
+			state.helloMs ? `hello:${state.helloMs}` : "",
+			state.readyMs ? `ready:${state.readyMs}` : "",
+			state.initMs ? `init:${state.initMs}` : "",
+			state.chanMs ? `chan:${state.chanMs}` : "",
+			state.netMs ? `net:${state.netMs}` : "",
+			state.loadMs ? `load:${state.loadMs}` : "",
 			`ws:${state.ws || "?"}`,
 			`idle:${state.idleS ?? "?"}s`,
 			`reconn:${Boolean(state.reconn)}`,
 			`hb:${Boolean(state.hb)}`,
-		];
-		const lines = Array.isArray(state.startupLines) ? state.startupLines.slice(-3) : [];
-		diag.textContent = [parts.join(" "), ...lines].join("\n");
+		].filter(Boolean);
+		diag.textContent = parts.join(" ");
 	} catch (error) {
 		console.error("[ws-diag] failed to render", error);
 	}
@@ -51,15 +61,19 @@ window.__startupMark = (stage: string, data?: any) => {
 		const delta = Math.round(performance.now() - window.__startupStartedAt);
 		const suffix = data === undefined ? "" : " " + (typeof data === "string" ? data : JSON.stringify(data));
 		const msg = `t+${delta}ms ${stage}${suffix}`;
+		const patch: any = {startup: stage.replaceAll(" ", "-")};
+		if (stage === "ws hello" && data?.sinceOpenMs !== undefined) patch.helloMs = `${data.sinceOpenMs}ms`;
+		if ((stage === "ws ready" || stage === "ws resumed") && data?.sinceOpenMs !== undefined) patch.readyMs = `${data.sinceOpenMs}ms`;
+		if (stage === "finishLoading init done" && data?.ms !== undefined) patch.initMs = `${data.ms}ms`;
+		if ((stage === "init channel load done" || stage === "init channel load timed out" || stage === "fallback channel load done" || stage === "fallback channel load timed out") && data?.ms !== undefined) {
+			patch.chanMs = `${data.ms}ms${stage.includes("timed out") ? "!" : ""}`;
+		}
+		if ((stage === "channel network batch" || stage === "channel cache batch") && data?.ms !== undefined) {
+			patch.netMs = `${data.ms}ms${data.count ? "/" + data.count : ""}`;
+		}
+		if (stage === "loading complete" && data?.ms !== undefined) patch.loadMs = `${data.ms}ms`;
 		// @ts-ignore
-		const prevLines =
-			// @ts-ignore
-			(Array.isArray(window.__diagState?.startupLines) ? window.__diagState.startupLines : []).slice(-2);
-		// @ts-ignore
-		if (window.__updateWsDiag) window.__updateWsDiag({
-			startup: `t+${delta}ms ${stage}`,
-			startupLines: [...prevLines, msg],
-		});
+		if (window.__updateWsDiag) window.__updateWsDiag(patch);
 		console.log(`[startup-trace] ${msg}`);
 		// @ts-ignore
 		if (window.__loadingDebug && document.getElementById("loading")?.classList.contains("loading")) {
