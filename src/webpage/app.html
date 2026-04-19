@@ -283,7 +283,7 @@
 			(function() {
 				const script = document.createElement("script");
 				script.type = "module";
-				script.src = "/index.js?_cv=" + Date.now();
+				script.src = "/index.js?v=__BUILD_VERSION__";
 				script.onerror = function(error) {
 					if (window.__loadingDebug) window.__loadingDebug("index.js 加载失败");
 					console.error("[boot] index.js load failed", error);

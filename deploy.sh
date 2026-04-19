@@ -20,14 +20,24 @@ fi
 echo "Building..."
 npm run build 2>&1 | tail -3
 
-echo "Deploying..."
-sudo rsync -a --delete dist/webpage/ "$DEPLOY_DIR"/
-
 FULL_HASH=$(git rev-parse HEAD)
 SHORT_HASH=$(git rev-parse --short=8 HEAD)
 COMMIT_UNIX=$(git show -s --format=%ct HEAD)
 COMMIT_MSG=$(git show -s --format=%s HEAD)
 COMMIT_ISO=$(date -u -d "@$COMMIT_UNIX" +"%Y-%m-%dT%H:%M:%SZ")
+
+python3 - <<'PY'
+from pathlib import Path
+import subprocess
+revision = subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip()
+app = Path("dist/webpage/app.html")
+text = app.read_text()
+if "__BUILD_VERSION__" in text:
+    app.write_text(text.replace("__BUILD_VERSION__", revision))
+PY
+
+echo "Deploying..."
+sudo rsync -a --delete dist/webpage/ "$DEPLOY_DIR"/
 
 python3 -c "
 import json, subprocess, sys
