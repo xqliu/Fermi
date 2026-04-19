@@ -6,6 +6,14 @@ const BUILD_VERSION = "__BUILD_VERSION__";
 const SHELL_CACHE_PREFIX = "cache-";
 const CURRENT_SHELL_CACHE = `${SHELL_CACHE_PREFIX}${BUILD_VERSION}`;
 const REQUIRED_SHELL_PATHS = ["/app.html", "/index.js", "/getupdates"];
+const FULL_SHELL_REQUIRED_PATHS = [
+	...REQUIRED_SHELL_PATHS,
+	"/style.css",
+	"/themes.css",
+	"/logo.svg",
+	"/manifest.json",
+	"/reset.html",
+];
 const FULL_SHELL_MARKER_PATH = "/__full-shell-ready__";
 console.log("[SW] version:", BUILD_VERSION);
 
@@ -33,17 +41,24 @@ async function clearAllShellCaches() {
 			.map((key) => caches.delete(key)),
 	);
 }
-async function hasCurrentShellCache() {
-	const cache = await caches.open(CURRENT_SHELL_CACHE);
-	const matches = await Promise.all(REQUIRED_SHELL_PATHS.map((path) => cache.match(new URL(path, self.location.origin))));
+async function hasCachedPaths(paths: string[], cacheName = CURRENT_SHELL_CACHE) {
+	const cache = await caches.open(cacheName);
+	const matches = await Promise.all(paths.map((path) => cache.match(new URL(path, self.location.origin))));
 	return matches.every(Boolean);
+}
+async function hasCurrentShellCache() {
+	return hasCachedPaths(REQUIRED_SHELL_PATHS, CURRENT_SHELL_CACHE);
 }
 async function hasFullShellCache(cacheName = CURRENT_SHELL_CACHE) {
 	const cache = await caches.open(cacheName);
-	return Boolean(await cache.match(new URL(FULL_SHELL_MARKER_PATH, self.location.origin)));
+	const [marker, fullAssetsReady] = await Promise.all([
+		cache.match(new URL(FULL_SHELL_MARKER_PATH, self.location.origin)),
+		hasCachedPaths(FULL_SHELL_REQUIRED_PATHS, cacheName),
+	]);
+	return Boolean(marker) && fullAssetsReady;
 }
-async function cacheRequiredShellFiles(cacheName = CURRENT_SHELL_CACHE) {
-	for (const path of REQUIRED_SHELL_PATHS) {
+async function cacheShellPaths(paths: string[], cacheName = CURRENT_SHELL_CACHE) {
+	for (const path of paths) {
 		try {
 			const response = await fetch(path, {cache: "no-store"});
 			if (!response.ok) {
@@ -54,6 +69,13 @@ async function cacheRequiredShellFiles(cacheName = CURRENT_SHELL_CACHE) {
 			console.error("[SW] failed to cache shell path:", path, error);
 		}
 	}
+}
+async function cacheRequiredShellFiles(cacheName = CURRENT_SHELL_CACHE) {
+	await cacheShellPaths(REQUIRED_SHELL_PATHS, cacheName);
+}
+async function ensureCriticalFullShellFiles(cacheName = CURRENT_SHELL_CACHE) {
+	await cacheShellPaths(FULL_SHELL_REQUIRED_PATHS, cacheName);
+	return hasCachedPaths(FULL_SHELL_REQUIRED_PATHS, cacheName);
 }
 let ensureShellCachePromise: Promise<boolean> | undefined;
 let ensureFullShellCachePromise: Promise<boolean> | undefined;
@@ -149,6 +171,11 @@ async function ensureFullShellCache(force = false): Promise<boolean> {
 			const complete = await downloadAllFiles(CURRENT_SHELL_CACHE);
 			if (!complete) {
 				console.warn("[SW] full shell backfill incomplete; keeping older caches");
+				return false;
+			}
+			const criticalShellReady = await ensureCriticalFullShellFiles(CURRENT_SHELL_CACHE);
+			if (!criticalShellReady) {
+				console.warn("[SW] critical shell assets still missing; keeping older caches");
 				return false;
 			}
 			await markFullShellCacheReady(CURRENT_SHELL_CACHE);

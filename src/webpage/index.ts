@@ -289,6 +289,8 @@ if (_forceChannelsInit || window.location.pathname.startsWith("/channels")) {
 	let templateID = new URLSearchParams(window.location.search).get("templateID");
 	const _loaddesc = document.getElementById("load-desc") as HTMLSpanElement;
 	const _debugEl = document.getElementById("loading-debug") as HTMLElement | null;
+	let wsHelloSeen = false;
+	let wsReadySeen = false;
 		const _debugLog = (msg: string) => {
 			// @ts-ignore
 			if (window.__loadingDebug) window.__loadingDebug(msg);
@@ -296,6 +298,12 @@ if (_forceChannelsInit || window.location.pathname.startsWith("/channels")) {
 			console.log(`[startup] ${msg}`);
 		};
 		const _startupMark = (stage: string, data?: any) => {
+			if (stage === "ws hello") {
+				wsHelloSeen = true;
+			}
+			if (stage === "ws ready" || stage === "ws resumed") {
+				wsReadySeen = true;
+			}
 			// @ts-ignore
 			if (window.__startupMark) window.__startupMark(stage, data);
 		};
@@ -407,11 +415,49 @@ if (_forceChannelsInit || window.location.pathname.startsWith("/channels")) {
 			let delayedRetryScheduled = false;
 			let cacheFinishStarted = false;
 			let liveFinishStarted = false;
+			let sharedPostLoadApplied = false;
+			let livePostLoadApplied = false;
+			let livePostLoadPromise: Promise<void> | undefined;
 			let restoreOfflinePromise: Promise<boolean> | undefined;
 		// Pre-fetch defaults (fire-and-forget, used after init)
 		if (navigator.onLine) {
 			fetch("/user-defaults.json").then(r => r.ok ? r.json() : null).then(d => { _defaultsCfg = d; }).catch(() => {});
 		}
+			const applySharedPostLoad = () => {
+				if (sharedPostLoadApplied) return;
+				if (templateID) {
+					thisUser.passTemplateID(templateID);
+				}
+				if (window.innerWidth <= 600) {
+					const toggle = document.getElementById("maintoggle") as HTMLInputElement | null;
+					if (toggle) toggle.checked = true;
+				}
+				sharedPostLoadApplied = true;
+			};
+			const applyLivePostLoad = async () => {
+				if (livePostLoadApplied) return;
+				if (livePostLoadPromise) {
+					return livePostLoadPromise;
+				}
+				livePostLoadPromise = (async () => {
+					if (window.location.pathname === "/channels/@me" && _defaultsCfg) {
+						const userId = thisUser.user?.id;
+						const dest = (userId && _defaultsCfg.perUser?.[userId]) || _defaultsCfg.fallback;
+						if (dest?.guild && dest?.channel) {
+							const guild = thisUser.guildids.get(dest.guild);
+							if (guild) {
+								guild.loadGuild();
+								await guild.loadChannel(dest.channel, false);
+							}
+						}
+					}
+					thisUser.subscribePush().catch((e: any) => console.warn("[push] subscribe failed:", e));
+					livePostLoadApplied = true;
+				})().finally(() => {
+					livePostLoadPromise = undefined;
+				});
+				return livePostLoadPromise;
+			};
 			const finishLoading = async (fromCache = false) => {
 				if (fromCache) {
 					if (cacheFinishStarted || liveFinishStarted) return;
@@ -422,6 +468,10 @@ if (_forceChannelsInit || window.location.pathname.startsWith("/channels")) {
 				}
 				const finishStartedAt = performance.now();
 				try {
+					if (!fromCache && cacheFinishStarted) {
+						await applyLivePostLoad();
+						return;
+					}
 					_startupMark("finishLoading start", {fromCache});
 					loaddesc.textContent = fromCache ? "正在加载本地缓存..." : "正在加载频道...";
 					thisUser.loaduser();
@@ -437,29 +487,10 @@ if (_forceChannelsInit || window.location.pathname.startsWith("/channels")) {
 						fromCache,
 						ms: Math.round(performance.now() - finishStartedAt),
 					});
-					if (templateID) {
-						thisUser.passTemplateID(templateID);
+					applySharedPostLoad();
+					if (!fromCache) {
+						await applyLivePostLoad();
 					}
-				// Navigate to per-user default guild/channel after init
-				if (!fromCache && window.location.pathname === "/channels/@me" && _defaultsCfg) {
-					const userId = thisUser.user?.id;
-					const dest = (userId && _defaultsCfg.perUser?.[userId]) || _defaultsCfg.fallback;
-					if (dest?.guild && dest?.channel) {
-						const guild = thisUser.guildids.get(dest.guild);
-						if (guild) {
-							guild.loadGuild();
-							await guild.loadChannel(dest.channel, false);
-						}
-					}
-				}
-				// Close sidebar on mobile (phone only, not tablet) after loading
-				if (window.innerWidth <= 600) {
-					const toggle = document.getElementById("maintoggle") as HTMLInputElement | null;
-					if (toggle) toggle.checked = true;
-				}
-				if (!fromCache) {
-					thisUser.subscribePush().catch((e: any) => console.warn("[push] subscribe failed:", e));
-				}
 				} catch (error) {
 					if (fromCache) {
 						cacheFinishStarted = false;
@@ -470,7 +501,7 @@ if (_forceChannelsInit || window.location.pathname.startsWith("/channels")) {
 				}
 			};
 			const restoreOfflineFallback = async (reason: string): Promise<boolean> => {
-				if (restoredOffline || liveFinishStarted) {
+				if (restoredOffline || liveFinishStarted || cacheFinishStarted) {
 					return false;
 				}
 				if (restoreOfflinePromise) {
@@ -487,7 +518,7 @@ if (_forceChannelsInit || window.location.pathname.startsWith("/channels")) {
 							}, 3000),
 						),
 					]);
-					if (!restored || restoredOffline || liveFinishStarted) {
+					if (!restored || restoredOffline || liveFinishStarted || cacheFinishStarted) {
 						return false;
 					}
 					restoredOffline = true;
@@ -509,12 +540,16 @@ if (_forceChannelsInit || window.location.pathname.startsWith("/channels")) {
 			if (!navigator.onLine) {
 				await restoreOfflineFallback("offline");
 			} else {
+				// Healthy startups should reach READY well before this.
+				// If the page is still online-but-stalled after 5s, prefer cached UI
+				// over sitting on the loading screen until the 15s WS timeout.
+				const onlineStartupFallbackDelayMs = 5000;
 				window.setTimeout(() => {
-					if (restoredOffline || liveFinishStarted) return;
-					void restoreOfflineFallback("online startup fallback").catch((error) => {
+					if (restoredOffline || liveFinishStarted || cacheFinishStarted || wsReadySeen) return;
+					void restoreOfflineFallback(wsHelloSeen ? "online startup stalled after hello" : "online startup stalled before hello").catch((error) => {
 						console.error("[offline] online startup fallback failed", error);
 					});
-				}, 1500);
+				}, onlineStartupFallbackDelayMs);
 			}
 		let retryCount = 0;
 		const waitForOnline = () => {
@@ -554,6 +589,12 @@ if (_forceChannelsInit || window.location.pathname.startsWith("/channels")) {
 					});
 					retryCount = 0;
 				} catch (e) {
+					if (e instanceof Error && (e as Error & {authFailure?: boolean}).authFailure) {
+						_debugLog(`WS 鉴权失败: ${e.message}`);
+						console.error("[init] auth failure during startup, stopping retry loop", e);
+						loaddesc.textContent = "登录已失效，正在返回登录...";
+						return;
+					}
 					if (!restoredOffline) {
 						void restoreOfflineFallback("ws failure").catch((error) => {
 							console.error("[offline] ws failure fallback failed", error);

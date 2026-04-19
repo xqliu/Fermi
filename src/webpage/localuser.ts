@@ -69,7 +69,7 @@ type traceObj = {
 	calls?: (string | traceObj)[];
 };
 type trace = [string, traceObj];
-const wsCodesRetry = new Set([4000, 4001, 4002, 4003, 4005, 4007, 4008, 4009]);
+const wsCodesRetry = new Set([4000, 4001, 4002, 4005, 4007, 4008, 4009]);
 interface CustomHTMLDivElement extends HTMLDivElement {
 	markdown: MarkDown;
 }
@@ -1036,7 +1036,6 @@ class Localuser {
 			});
 			updateWsDiag({ws: "closed"});
 			console.log(`[ws-close] code=${event.code} reason="${event.reason}" managedReconnect=${managedReconnect} errorBackoff=${this.errorBackoff}`);
-			rejecty(new Error(`WebSocket closed: ${event.code}${event.reason ? ` (${event.reason})` : ""}`));
 			if (event.code === 4003 || event.code === 4004) {
 				console.warn(`[ws-close] auth failure, clearing local session and returning to login: ${event.code} ${event.reason}`);
 				if (this.reconnectTimeout) {
@@ -1050,9 +1049,14 @@ class Localuser {
 				} catch (error) {
 					console.error("[ws-close] failed to clear invalid local session", error);
 				}
+				const authError = new Error(`WebSocket auth failure: ${event.code}${event.reason ? ` (${event.reason})` : ""}`);
+				(authError as Error & {authFailure?: boolean; closeCode?: number}).authFailure = true;
+				(authError as Error & {authFailure?: boolean; closeCode?: number}).closeCode = event.code;
+				rejecty(authError);
 				safeNavigate("/login");
 				return;
 			}
+			rejecty(new Error(`WebSocket closed: ${event.code}${event.reason ? ` (${event.reason})` : ""}`));
 			if (managedReconnect) {
 				// managed reconnect closed — the parent _checkAndReconnect's catch
 				// will handle retry via fresh identify, so don't start a competing one.
