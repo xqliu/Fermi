@@ -37,6 +37,8 @@ async function hasCurrentShellCache() {
 	const matches = await Promise.all(REQUIRED_SHELL_PATHS.map((path) => cache.match(new URL(path, self.location.origin))));
 	return matches.every(Boolean);
 }
+let ensureShellCachePromise: Promise<boolean> | undefined;
+let lastEnsureShellCacheAt = 0;
 type files = {[key: string]: string | files};
 async function getAllFiles() {
 	const files = await fetch("/files.json");
@@ -47,12 +49,12 @@ async function getAllFiles() {
 const LAZY_DIRS = new Set(["/emoji"]);
 
 async function cachePath(path: string, json: files, cacheName = CURRENT_SHELL_CACHE) {
-	await Promise.all(
-		Object.entries(json).map(async ([name, thing]) => {
+	for (const [name, thing] of Object.entries(json)) {
+		try {
 			if (typeof thing === "string") {
 				const lpath = path + "/" + name;
 				if (lpath.endsWith(".map") && !dev) {
-					return;
+					continue;
 				}
 				const res = await fetch(lpath, { cache: "no-store" });
 				await putInCache(new URL(lpath, self.location.origin), res, cacheName);
@@ -60,17 +62,52 @@ async function cachePath(path: string, json: files, cacheName = CURRENT_SHELL_CA
 				const dirPath = path + "/" + name;
 				if (LAZY_DIRS.has(dirPath)) {
 					console.log("[SW] skipping lazy dir:", dirPath);
-					return;
+					continue;
 				}
 				await cachePath(dirPath, thing, cacheName);
 			}
-		}),
-	);
+		} catch (error) {
+			console.error("[SW] failed to cache path:", path + "/" + name, error);
+		}
+	}
 }
 
 async function downloadAllFiles(cacheName = CURRENT_SHELL_CACHE) {
 	const json = await getAllFiles();
 	await cachePath("", json, cacheName);
+}
+async function ensureCurrentShellCache(force = false): Promise<boolean> {
+	if (!force && (await hasCurrentShellCache())) {
+		return true;
+	}
+	if (ensureShellCachePromise) {
+		return ensureShellCachePromise;
+	}
+	const now = Date.now();
+	if (!force && now - lastEnsureShellCacheAt < 30000) {
+		return false;
+	}
+	lastEnsureShellCacheAt = now;
+	ensureShellCachePromise = (async () => {
+		try {
+			console.log("[SW] shell cache incomplete, backfilling current version");
+			await downloadAllFiles(CURRENT_SHELL_CACHE);
+			const ready = await hasCurrentShellCache();
+			if (ready) {
+				console.log("[SW] shell cache ready for", BUILD_VERSION);
+				await deleteOldShellCaches(CURRENT_SHELL_CACHE);
+			} else {
+				console.warn("[SW] shell cache still incomplete after backfill");
+			}
+			return ready;
+		} catch (error) {
+			console.error("[SW] shell cache backfill failed:", error);
+			return false;
+		} finally {
+			ensureShellCachePromise = undefined;
+		}
+	})();
+	return ensureShellCachePromise;
 }
 async function getFromCache(request: URL, cacheName?: string) {
 	request = new URL(request, self.location.href);
@@ -114,26 +151,16 @@ async function putInCache(request: URL | string, response: Response, cacheName?:
 let lastcache: string;
 self.addEventListener("install", (event: any) => {
 	console.log("[SW] Installing, skip waiting");
-	event.waitUntil(downloadAllFiles(CURRENT_SHELL_CACHE).catch((e) => console.error("[SW] install precache failed:", e)));
+	event.waitUntil(ensureCurrentShellCache(true).catch((e) => console.error("[SW] install precache failed:", e)));
 	(self as any).skipWaiting();
 });
 
 self.addEventListener("activate", async (event: any) => {
 	console.log("[SW] Activated, version:", BUILD_VERSION);
 	event.waitUntil((async () => {
-		let downloadOk = false;
-		try {
-			if (!(await hasCurrentShellCache())) {
-				await downloadAllFiles(CURRENT_SHELL_CACHE);
-			}
-			console.log("[SW] All files re-cached for version", BUILD_VERSION);
-			downloadOk = true;
-		} catch (e) {
-			console.error("[SW] Failed to re-cache files:", e);
-		}
+		const downloadOk = await ensureCurrentShellCache(true);
 		await (self as any).clients.claim();
 		if (downloadOk) {
-			await deleteOldShellCaches(CURRENT_SHELL_CACHE);
 			const clients = await (self as any).clients.matchAll();
 			for (const client of clients) {
 				client.postMessage({ code: "newVersion", version: BUILD_VERSION });
@@ -410,6 +437,9 @@ self.addEventListener("fetch", async (e) => {
 	const pathname = new URL(req.url).pathname;
 	if (pathname.startsWith("/api/") || pathname === "/getupdates" || pathname === "/version.json" || pathname === "/user-defaults.json" || pathname === "/reset") {
 		return;
+	}
+	if (samedomain(req.url)) {
+		event.waitUntil(ensureCurrentShellCache().catch((error) => console.error("[SW] background shell backfill failed:", error)));
 	}
 	try {
 		event.respondWith(getfile(req));
