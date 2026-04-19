@@ -57,8 +57,10 @@ async function cacheRequiredShellFiles(cacheName = CURRENT_SHELL_CACHE) {
 }
 let ensureShellCachePromise: Promise<boolean> | undefined;
 let ensureFullShellCachePromise: Promise<boolean> | undefined;
+let pruneOldShellCachesPromise: Promise<void> | undefined;
 let lastEnsureShellCacheAt = 0;
 let lastEnsureFullShellAt = 0;
+let oldCachesPruned = false;
 type files = {[key: string]: string | files};
 async function getAllFiles() {
 	const files = await fetch("/files.json");
@@ -113,9 +115,24 @@ async function markFullShellCacheReady(cacheName = CURRENT_SHELL_CACHE) {
 		cacheName,
 	);
 }
+async function pruneOldShellCachesOnce() {
+	if (oldCachesPruned) {
+		return;
+	}
+	if (pruneOldShellCachesPromise) {
+		return pruneOldShellCachesPromise;
+	}
+	pruneOldShellCachesPromise = (async () => {
+		await deleteOldShellCaches(CURRENT_SHELL_CACHE);
+		oldCachesPruned = true;
+	})().finally(() => {
+		pruneOldShellCachesPromise = undefined;
+	});
+	return pruneOldShellCachesPromise;
+}
 async function ensureFullShellCache(force = false): Promise<boolean> {
 	if (!force && (await hasFullShellCache())) {
-		await deleteOldShellCaches(CURRENT_SHELL_CACHE);
+		await pruneOldShellCachesOnce();
 		return true;
 	}
 	if (ensureFullShellCachePromise) {
@@ -136,7 +153,7 @@ async function ensureFullShellCache(force = false): Promise<boolean> {
 			}
 			await markFullShellCacheReady(CURRENT_SHELL_CACHE);
 			console.log("[SW] full shell ready for", BUILD_VERSION);
-			await deleteOldShellCaches(CURRENT_SHELL_CACHE);
+			await pruneOldShellCachesOnce();
 			return true;
 		} catch (error) {
 			console.error("[SW] full shell backfill failed:", error);
@@ -530,7 +547,15 @@ self.addEventListener("fetch", async (e) => {
 		return;
 	}
 	const pathname = new URL(req.url).pathname;
-	if (pathname.startsWith("/api/") || pathname === "/getupdates" || pathname === "/version.json" || pathname === "/user-defaults.json" || pathname === "/reset" || pathname === "/reset.html") {
+	if (
+		pathname.startsWith("/api/") ||
+		pathname === "/getupdates" ||
+		pathname === "/version.json" ||
+		pathname === "/user-defaults.json" ||
+		pathname === "/reset" ||
+		pathname === "/reset.html" ||
+		pathname === FULL_SHELL_MARKER_PATH
+	) {
 		return;
 	}
 	if (samedomain(req.url)) {

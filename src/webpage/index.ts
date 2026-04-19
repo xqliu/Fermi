@@ -405,64 +405,93 @@ if (_forceChannelsInit || window.location.pathname.startsWith("/channels")) {
 			let restoredOffline = false;
 			let onlineRetryRegistered = false;
 			let delayedRetryScheduled = false;
+			let cacheFinishStarted = false;
+			let liveFinishStarted = false;
+			let restoreOfflinePromise: Promise<boolean> | undefined;
 		// Pre-fetch defaults (fire-and-forget, used after init)
 		if (navigator.onLine) {
 			fetch("/user-defaults.json").then(r => r.ok ? r.json() : null).then(d => { _defaultsCfg = d; }).catch(() => {});
 		}
 			const finishLoading = async (fromCache = false) => {
-				const finishStartedAt = performance.now();
-				_startupMark("finishLoading start", {fromCache});
-				loaddesc.textContent = fromCache ? "正在加载本地缓存..." : "正在加载频道...";
-				thisUser.loaduser();
-				await thisUser.init();
-				_startupMark("finishLoading init done", {
-					fromCache,
-					ms: Math.round(performance.now() - finishStartedAt),
-				});
-				hideLoadingOverlay();
-				loaddesc.textContent = fromCache ? "本地缓存已加载" : I18n.loaded();
-				console.log(fromCache ? "loaded from cache" : "done loading");
-				_startupMark("loading complete", {
-					fromCache,
-					ms: Math.round(performance.now() - finishStartedAt),
-				});
-				if (templateID) {
-					thisUser.passTemplateID(templateID);
+				if (fromCache) {
+					if (cacheFinishStarted || liveFinishStarted) return;
+					cacheFinishStarted = true;
+				} else {
+					if (liveFinishStarted) return;
+					liveFinishStarted = true;
 				}
-			// Navigate to per-user default guild/channel after init
-			if (!fromCache && window.location.pathname === "/channels/@me" && _defaultsCfg) {
-				const userId = thisUser.user?.id;
-				const dest = (userId && _defaultsCfg.perUser?.[userId]) || _defaultsCfg.fallback;
-				if (dest?.guild && dest?.channel) {
-					const guild = thisUser.guildids.get(dest.guild);
-					if (guild) {
-						guild.loadGuild();
-						await guild.loadChannel(dest.channel, false);
+				const finishStartedAt = performance.now();
+				try {
+					_startupMark("finishLoading start", {fromCache});
+					loaddesc.textContent = fromCache ? "正在加载本地缓存..." : "正在加载频道...";
+					thisUser.loaduser();
+					await thisUser.init();
+					_startupMark("finishLoading init done", {
+						fromCache,
+						ms: Math.round(performance.now() - finishStartedAt),
+					});
+					hideLoadingOverlay();
+					loaddesc.textContent = fromCache ? "本地缓存已加载" : I18n.loaded();
+					console.log(fromCache ? "loaded from cache" : "done loading");
+					_startupMark("loading complete", {
+						fromCache,
+						ms: Math.round(performance.now() - finishStartedAt),
+					});
+					if (templateID) {
+						thisUser.passTemplateID(templateID);
+					}
+				// Navigate to per-user default guild/channel after init
+				if (!fromCache && window.location.pathname === "/channels/@me" && _defaultsCfg) {
+					const userId = thisUser.user?.id;
+					const dest = (userId && _defaultsCfg.perUser?.[userId]) || _defaultsCfg.fallback;
+					if (dest?.guild && dest?.channel) {
+						const guild = thisUser.guildids.get(dest.guild);
+						if (guild) {
+							guild.loadGuild();
+							await guild.loadChannel(dest.channel, false);
+						}
 					}
 				}
-			}
-			// Close sidebar on mobile (phone only, not tablet) after loading
-			if (window.innerWidth <= 600) {
-				const toggle = document.getElementById("maintoggle") as HTMLInputElement | null;
-				if (toggle) toggle.checked = true;
-			}
-			if (!fromCache) {
-				thisUser.subscribePush().catch((e: any) => console.warn("[push] subscribe failed:", e));
-			}
+				// Close sidebar on mobile (phone only, not tablet) after loading
+				if (window.innerWidth <= 600) {
+					const toggle = document.getElementById("maintoggle") as HTMLInputElement | null;
+					if (toggle) toggle.checked = true;
+				}
+				if (!fromCache) {
+					thisUser.subscribePush().catch((e: any) => console.warn("[push] subscribe failed:", e));
+				}
+				} catch (error) {
+					if (fromCache) {
+						cacheFinishStarted = false;
+					} else {
+						liveFinishStarted = false;
+					}
+					throw error;
+				}
 			};
-			if (!navigator.onLine) {
-				_startupMark("offline restore start");
-				restoredOffline = await Promise.race<boolean>([
-					thisUser.restoreOfflineReady(),
-					new Promise<boolean>((resolve) =>
-						setTimeout(() => {
-							console.warn("[offline] restoreOfflineReady timed out after 3s");
-							resolve(false);
-						}, 3000),
-					),
-				]);
-				if (restoredOffline) {
-					_startupMark("offline restore ready applied");
+			const restoreOfflineFallback = async (reason: string): Promise<boolean> => {
+				if (restoredOffline || liveFinishStarted) {
+					return false;
+				}
+				if (restoreOfflinePromise) {
+					return restoreOfflinePromise;
+				}
+				restoreOfflinePromise = (async () => {
+					_startupMark("offline restore start", {reason, online: navigator.onLine});
+					const restored = await Promise.race<boolean>([
+						thisUser.restoreOfflineReady(),
+						new Promise<boolean>((resolve) =>
+							setTimeout(() => {
+								console.warn("[offline] restoreOfflineReady timed out after 3s");
+								resolve(false);
+							}, 3000),
+						),
+					]);
+					if (!restored || restoredOffline || liveFinishStarted) {
+						return false;
+					}
+					restoredOffline = true;
+					_startupMark("offline restore ready applied", {reason});
 					_debugLog("已恢复本地缓存，先显示本地数据");
 					try {
 						await finishLoading(true);
@@ -471,7 +500,21 @@ if (_forceChannelsInit || window.location.pathname.startsWith("/channels")) {
 						hideLoadingOverlay();
 						throw error;
 					}
-				}
+					return true;
+				})().finally(() => {
+					restoreOfflinePromise = undefined;
+				});
+				return restoreOfflinePromise;
+			};
+			if (!navigator.onLine) {
+				await restoreOfflineFallback("offline");
+			} else {
+				window.setTimeout(() => {
+					if (restoredOffline || liveFinishStarted) return;
+					void restoreOfflineFallback("online startup fallback").catch((error) => {
+						console.error("[offline] online startup fallback failed", error);
+					});
+				}, 1500);
 			}
 		let retryCount = 0;
 		const waitForOnline = () => {
@@ -511,6 +554,11 @@ if (_forceChannelsInit || window.location.pathname.startsWith("/channels")) {
 					});
 					retryCount = 0;
 				} catch (e) {
+					if (!restoredOffline) {
+						void restoreOfflineFallback("ws failure").catch((error) => {
+							console.error("[offline] ws failure fallback failed", error);
+						});
+					}
 					retryCount++;
 					if (retryCount > 5) {
 						const delayMs = 15000;
