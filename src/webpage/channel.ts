@@ -3247,93 +3247,95 @@ class Channel extends SnowFlake {
 		const loading = document.getElementById("loadingdiv") as HTMLDivElement;
 		const removetitle = document.getElementById("removetitle");
 		//messages.innerHTML="";
-		let scrollToBottom = false;
-		if (!id) {
-			if (this.lastmessageid) {
-				id = this.lastmessageid;
-				scrollToBottom = true;
-			}
-		}
-		if (!id && this.trueLastMessageid) {
-			id = this.trueLastMessageid;
-		}
-		if (!id) {
-			// No lastmessageid — try fetching latest message from API
-			// (Spacebar REST API often returns last_message_id=null)
-			try {
-				const resp = await fetch(
-					this.info.api + "/channels/" + this.id + "/messages?limit=1&_=" + Date.now(),
-					{
-						headers: this.localuser.headers,
-						cache: "no-store",
-					},
-				);
-				if (resp.ok) {
-					const msgs = await resp.json();
-					if (msgs.length > 0) {
-						id = msgs[0].id;
-						this.setLastMessageId(id);
-						scrollToBottom = true;
-					}
+		try {
+			let scrollToBottom = false;
+			if (!id) {
+				if (this.lastmessageid) {
+					id = this.lastmessageid;
+					scrollToBottom = true;
 				}
-			} catch (e) {
-				console.error("[channel] failed to fetch latest message:", e);
 			}
-		}
-		if (!id && (this.mentions > 0 || this.hasunreads)) {
-			try {
-				await this.putmessages(true);
-				id = this.lastmessageid || this.trueLastMessageid;
-				if (id) scrollToBottom = true;
-			} catch (e) {
-				console.error("[channel] forced backfill after unread failed:", e);
+			if (!id && this.trueLastMessageid) {
+				id = this.trueLastMessageid;
 			}
-		}
-		if (!id) {
-			// Truly no messages in this channel
-			if (!removetitle && messages.querySelectorAll(".messagediv").length === 0) {
-				const title = document.createElement("h2");
-				title.id = "removetitle";
-				title.textContent = I18n.noMessages();
-				title.classList.add("titlespace", "messagecontainer");
-				messages.append(title);
+			if (!id) {
+				// No lastmessageid — try fetching latest message from API
+				// (Spacebar REST API often returns last_message_id=null)
+				try {
+					const resp = await fetch(
+						this.info.api + "/channels/" + this.id + "/messages?limit=1&_=" + Date.now(),
+						{
+							headers: this.localuser.headers,
+							cache: "no-store",
+						},
+					);
+					if (resp.ok) {
+						const msgs = await resp.json();
+						if (msgs.length > 0) {
+							id = msgs[0].id;
+							this.setLastMessageId(id);
+							scrollToBottom = true;
+						}
+					}
+				} catch (e) {
+					console.error("[channel] failed to fetch latest message:", e);
+				}
 			}
+			if (!id && (this.mentions > 0 || this.hasunreads)) {
+				try {
+					await this.putmessages(true);
+					id = this.lastmessageid || this.trueLastMessageid;
+					if (id) scrollToBottom = true;
+				} catch (e) {
+					console.error("[channel] forced backfill after unread failed:", e);
+				}
+			}
+			if (!id) {
+				// Truly no messages in this channel
+				if (!removetitle && messages.querySelectorAll(".messagediv").length === 0) {
+					const title = document.createElement("h2");
+					title.id = "removetitle";
+					title.textContent = I18n.noMessages();
+					title.classList.add("titlespace", "messagecontainer");
+					messages.append(title);
+				}
+				return;
+			} else if (removetitle) {
+				removetitle.remove();
+			}
+			if (this.localuser.channelfocus !== this) {
+				return;
+			}
+			const elements = Array.from(messages.getElementsByClassName("scroller"));
+			for (const elm of elements) {
+				elm.remove();
+				console.warn("rouge element detected and removed");
+			}
+			messages.append(await this.infinite.getDiv(id, flash));
+			/*
+			await this.infinite.watchForChange().then(async (_) => {
+				//await new Promise(resolve => setTimeout(resolve, 0));
+
+				await this.infinite.focus(id, falsh); //if someone could figure out how to make this work correctly without this, that's be great :P
+
+
+				this.infinite.focus(id, falsh, true);
+			});
+			*/
+			await this.focus(id, flash);
+			if (scrollToBottom) {
+				// getDiv calls focus() internally (fire-and-forget) which loads
+				// messages and calls scrollIntoView({block:"center"}). We need
+				// to override that to scroll to the very bottom. Wait for the
+				// filling promise to resolve, then force scroll.
+				await this.infinite.waitForReady();
+				if (this.infinite.div) {
+					this.infinite.div.scrollTop = this.infinite.div.scrollHeight;
+				}
+			}
+		} finally {
 			this.infinitefocus = false;
 			loading.classList.remove("loading");
-			return;
-		} else if (removetitle) {
-			removetitle.remove();
-		}
-		if (this.localuser.channelfocus !== this) {
-			return;
-		}
-		const elements = Array.from(messages.getElementsByClassName("scroller"));
-		for (const elm of elements) {
-			elm.remove();
-			console.warn("rouge element detected and removed");
-		}
-		messages.append(await this.infinite.getDiv(id, flash));
-		/*
-		await this.infinite.watchForChange().then(async (_) => {
-			//await new Promise(resolve => setTimeout(resolve, 0));
-
-			await this.infinite.focus(id, falsh); //if someone could figure out how to make this work correctly without this, that's be great :P
-
-
-			this.infinite.focus(id, falsh, true);
-		});
-		*/
-		await this.focus(id, flash);
-		loading.classList.remove("loading");
-		if (scrollToBottom) {
-			// getDiv calls focus() internally (fire-and-forget) which loads
-			// messages and calls scrollIntoView({block:"center"}). We need
-			// to override that to scroll to the very bottom. Wait for the
-			// filling promise to resolve, then force scroll.
-			await this.infinite.waitForReady();
-			if (this.infinite.div) {
-				this.infinite.div.scrollTop = this.infinite.div.scrollHeight;
-			}
 		}
 		//this.infinite.focus(id.id,false);
 	}

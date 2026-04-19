@@ -261,6 +261,10 @@ function isDocumentRequest(req: Request) {
 function hasFileExtension(path: string) {
 	return /\/[^/]+\.[^/]+$/.test(path);
 }
+function isForcedFreshAssetRequest(req: Request) {
+	const url = new URL(req.url);
+	return samedomain(req.url) && hasFileExtension(url.pathname) && url.searchParams.has("_cv");
+}
 async function getCachedNavigationFallback(req: Request) {
 	const url = new URL(req.url);
 	const paths = new Set<string>();
@@ -347,6 +351,20 @@ async function getfile(req: Request): Promise<Response> {
 	if (path === "/instances.json") {
 		//TODO the client shouldn't really even fetch this, it should just ask the SW for it
 		return await fetch(path);
+	}
+	if (isForcedFreshAssetRequest(req)) {
+		try {
+			const responseFromNetwork = await fetch(req.clone(), {cache: "no-store"});
+			if (responseFromNetwork.ok) {
+				await putInCache(path, responseFromNetwork.clone());
+			}
+			return responseFromNetwork;
+		} catch (error) {
+			console.warn("[SW] forced-fresh asset fetch failed, falling back to cache:", req.url, error);
+			const cached = await getFromAnyShellCache(new URL(path, self.location.origin));
+			if (cached) return cached;
+			throw error;
+		}
 	}
 	console.log("Getting path: " + path);
 	const responseFromCache = await getFromCache(new URL(path, self.location.origin));
