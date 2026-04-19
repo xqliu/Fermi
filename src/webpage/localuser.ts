@@ -73,6 +73,24 @@ interface CustomHTMLDivElement extends HTMLDivElement {
 	markdown: MarkDown;
 }
 
+function startupMark(stage: string, data?: any) {
+	try {
+		// @ts-ignore
+		if (window.__startupMark) window.__startupMark(stage, data);
+	} catch (error) {
+		console.error("[startup-trace] localuser log failed", error);
+	}
+}
+
+function updateWsDiag(patch: any) {
+	try {
+		// @ts-ignore
+		if (window.__updateWsDiag) window.__updateWsDiag(patch);
+	} catch (error) {
+		console.error("[ws-diag] localuser update failed", error);
+	}
+}
+
 MarkDown.emoji = Emoji;
 
 // Rate-limited reload: max 3 reloads per 60s, then stop and show error
@@ -161,12 +179,13 @@ class Localuser {
 			const wsState = this.ws ? this.ws.readyState : -1;
 			const vis = document.visibilityState;
 
-			// On-screen diagnostic (PWA has no DevTools)
-			const diag = document.getElementById("ws-diag");
-			if (diag) {
 				const ws = ["connecting","open","closing","closed","no-ws"][wsState+1] || "?";
-				diag.textContent = `ws:${ws} idle:${Math.round(staleness/1000)}s reconn:${this._reconnecting} hb:${this._heartbeatAckPending}`;
-			}
+				updateWsDiag({
+					ws,
+					idleS: Math.round(staleness / 1000),
+					reconn: this._reconnecting,
+					hb: this._heartbeatAckPending,
+				});
 
 			if (vis !== "visible") return;
 			if (this._reconnecting) {
@@ -799,6 +818,11 @@ class Localuser {
 	resume_gateway_url?: string;
 	session_id?: string;
 	async initwebsocket(resume = false, managedReconnect = false): Promise<void> {
+		const wsStartedAt = performance.now();
+		let helloAt = 0;
+		let handshakeAt = 0;
+		startupMark("ws connect start", {resume, managedReconnect});
+		updateWsDiag({ws: "connecting"});
 		this._resumedSuccessfully = false; // reset before each connection attempt
 		let returny: () => void;
 		let rejecty: (reason?: unknown) => void;
@@ -825,6 +849,11 @@ class Localuser {
 				return;
 			}
 			sentHandshake = true;
+			handshakeAt = performance.now();
+			startupMark(resume ? "ws resume sent" : "ws identify sent", {
+				sinceOpenMs: Math.round(handshakeAt - wsStartedAt),
+				sinceHelloMs: helloAt ? Math.round(handshakeAt - helloAt) : undefined,
+			});
 			if (resume) {
 				ws.send(
 					JSON.stringify({
@@ -878,6 +907,12 @@ class Localuser {
 			ws.addEventListener("open", (_event) => {
 				this._lastWsActivityAt = Date.now();
 				console.log(`[ws-open] resume=${resume} comp=${doComp} url=${ws.url.substring(0, 60)}...`);
+				startupMark("ws open", {
+					resume,
+					comp: doComp,
+					ms: Math.round(performance.now() - wsStartedAt),
+				});
+				updateWsDiag({ws: "open", idleS: 0});
 			});
 
 			if (doComp) {
@@ -893,12 +928,23 @@ class Localuser {
 							continue;
 						}
 						try {
+							if (temp.op === 10 && !helloAt) {
+								helloAt = performance.now();
+								startupMark("ws hello", {
+									resume,
+									sinceOpenMs: Math.round(helloAt - wsStartedAt),
+								});
+							}
 							await this.handleEvent(temp);
 							if (temp.op === 10) {
 								sendHandshake();
 							}
 							if (temp.op === 0 && (temp.t === "READY" || temp.t === "RESUMED")) {
-								console.log("in here?");
+								startupMark(temp.t === "RESUMED" ? "ws resumed" : "ws ready", {
+									sinceOpenMs: Math.round(performance.now() - wsStartedAt),
+									sinceHelloMs: helloAt ? Math.round(performance.now() - helloAt) : undefined,
+									sinceHandshakeMs: handshakeAt ? Math.round(performance.now() - handshakeAt) : undefined,
+								});
 								returny();
 							}
 						} catch (error) {
@@ -949,17 +995,29 @@ class Localuser {
 						w.write(arr.buffer);
 						arr = new Uint8Array();
 						return; //had to move the while loop due to me being dumb
-					} else {
-						temp = JSON.parse(event.data);
-					}
+						} else {
+							temp = JSON.parse(event.data);
+						}
 
-					await this.handleEvent(temp as readyjson);
-					if (temp.op === 10) {
-						sendHandshake();
-					}
-					if (temp.op === 0 && (temp.t === "READY" || temp.t === "RESUMED")) {
-						returny();
-					}
+						if (temp.op === 10 && !helloAt) {
+							helloAt = performance.now();
+							startupMark("ws hello", {
+								resume,
+								sinceOpenMs: Math.round(helloAt - wsStartedAt),
+							});
+						}
+						await this.handleEvent(temp as readyjson);
+						if (temp.op === 10) {
+							sendHandshake();
+						}
+						if (temp.op === 0 && (temp.t === "READY" || temp.t === "RESUMED")) {
+							startupMark(temp.t === "RESUMED" ? "ws resumed" : "ws ready", {
+								sinceOpenMs: Math.round(performance.now() - wsStartedAt),
+								sinceHelloMs: helloAt ? Math.round(performance.now() - helloAt) : undefined,
+								sinceHandshakeMs: handshakeAt ? Math.round(performance.now() - handshakeAt) : undefined,
+							});
+							returny();
+						}
 				} catch (e) {
 					console.error(e);
 				} finally {
@@ -970,6 +1028,12 @@ class Localuser {
 
 		ws.addEventListener("close", async (event) => {
 			this.ws = undefined;
+			startupMark("ws close", {
+				code: event.code,
+				reason: event.reason,
+				sinceOpenMs: Math.round(performance.now() - wsStartedAt),
+			});
+			updateWsDiag({ws: "closed"});
 			console.log(`[ws-close] code=${event.code} reason="${event.reason}" managedReconnect=${managedReconnect} errorBackoff=${this.errorBackoff}`);
 			rejecty(new Error(`WebSocket closed: ${event.code}${event.reason ? ` (${event.reason})` : ""}`));
 			if (event.code === 4003 || event.code === 4004) {
@@ -2160,6 +2224,8 @@ class Localuser {
 		console.log("[push] Subscribed successfully");
 	}
 	async init() {
+		const initStartedAt = performance.now();
+		startupMark("init start");
 		this.quickSwitcher = new QuickSwitcher(this);
 		this.quickSwitcher.refreshBadges();
 		this.buildservers();
@@ -2172,6 +2238,7 @@ class Localuser {
 			const timeout = new Promise<{timedOut: true}>((resolve) => {
 				timeoutId = window.setTimeout(() => {
 					console.warn(`[init] ${label} timed out after ${timeoutMs}ms; continuing in background`);
+					startupMark(`${label} timeout`, {timeoutMs});
 					resolve({timedOut: true});
 				}, timeoutMs);
 			});
@@ -2206,44 +2273,74 @@ class Localuser {
 			}
 		}
 
-		if (guildId) {
-			const guild = this.loadGuild(guildId);
-			if (!guild) {
-				return;
-			}
-			try {
-				const loadChannelPromise = guild.loadChannel(channelId || undefined, true, messageId);
-				const loadResult = await withSoftTimeout(loadChannelPromise, 5000, "initial channel load");
-				if (loadResult.timedOut) {
-					loadChannelPromise.catch((error) => {
-						console.error("[init] background loadChannel failed", error);
+			if (guildId) {
+				const guild = this.loadGuild(guildId);
+				if (!guild) {
+					startupMark("init guild missing", {guildId});
+					return;
+				}
+				try {
+					const initialChannelStartedAt = performance.now();
+					startupMark("init channel load start", {guildId, channelId, messageId: messageId || ""});
+					const loadChannelPromise = guild.loadChannel(channelId || undefined, true, messageId);
+					const loadResult = await withSoftTimeout(loadChannelPromise, 5000, "initial channel load");
+					if (loadResult.timedOut) {
+						startupMark("init channel load timed out", {
+							guildId,
+							channelId,
+							ms: Math.round(performance.now() - initialChannelStartedAt),
+						});
+						loadChannelPromise.catch((error) => {
+							console.error("[init] background loadChannel failed", error);
+						});
+					} else {
+						startupMark("init channel load done", {
+							guildId,
+							channelId,
+							ms: Math.round(performance.now() - initialChannelStartedAt),
+						});
+					}
+					if (channelId) {
+						this.channelfocus = this.channelids.get(channelId);
+				}
+				} catch (error) {
+					console.warn("[offline] failed to restore requested route, falling back", error);
+					startupMark("init route restore failed", {
+						guildId,
+						channelId,
+						error: error instanceof Error ? error.message : String(error),
 					});
-				}
-				if (channelId) {
-					this.channelfocus = this.channelids.get(channelId);
-				}
-			} catch (error) {
-				console.warn("[offline] failed to restore requested route, falling back", error);
-				const fallbackPromise = guild.loadChannel(undefined, false);
-				const fallbackResult = await withSoftTimeout(fallbackPromise, 5000, "fallback channel load");
-				if (fallbackResult.timedOut) {
-					fallbackPromise.catch((fallbackError) => {
-						console.error("[init] background fallback loadChannel failed", fallbackError);
-					});
+					const fallbackStartedAt = performance.now();
+					const fallbackPromise = guild.loadChannel(undefined, false);
+					const fallbackResult = await withSoftTimeout(fallbackPromise, 5000, "fallback channel load");
+					if (fallbackResult.timedOut) {
+						startupMark("fallback channel load timed out", {
+							guildId,
+							ms: Math.round(performance.now() - fallbackStartedAt),
+						});
+						fallbackPromise.catch((fallbackError) => {
+							console.error("[init] background fallback loadChannel failed", fallbackError);
+						});
+					} else {
+						startupMark("fallback channel load done", {
+							guildId,
+							ms: Math.round(performance.now() - fallbackStartedAt),
+						});
+					}
 				}
 			}
-		}
 		// Restore typebox content saved before reconnect
-		if (this._savedTypebox) {
+			if (this._savedTypebox) {
 			const typebox = document.getElementById("typebox") as HTMLDivElement | null;
 			if (typebox) {
 				typebox.textContent = this._savedTypebox;
 				// @ts-ignore - markdown property added at runtime
 				if (typebox.markdown) typebox.markdown.boxupdate(Infinity);
 			}
-			this._savedTypebox = "";
+				this._savedTypebox = "";
+			}
+			startupMark("init done", {ms: Math.round(performance.now() - initStartedAt)});
 		}
-	}
 	loaduser(): void {
 		(document.getElementById("username") as HTMLSpanElement).textContent = this.user.username;
 		(document.getElementById("userpfp") as HTMLImageElement).src = this.user.getpfpsrc();

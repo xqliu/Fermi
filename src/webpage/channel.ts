@@ -37,6 +37,15 @@ import {Command} from "./interactions/commands.js";
 import {Tag} from "./tag.js";
 import {getChannelMessages, saveChannelMessages} from "./utils/storage/offlineCache.js";
 
+function startupMark(stage: string, data?: any) {
+	try {
+		// @ts-ignore
+		if (window.__startupMark) window.__startupMark(stage, data);
+	} catch (error) {
+		console.error("[startup-trace] channel log failed", error);
+	}
+}
+
 class Channel extends SnowFlake {
 	editing!: Message | null;
 	type!: number;
@@ -2607,6 +2616,15 @@ class Channel extends SnowFlake {
 		this.forumSearch("", theadList);
 	}
 	async getHTML(addstate = true, getMessages: boolean | void = undefined, aroundMessage?: string) {
+		const startupTracked = document.getElementById("loading")?.classList.contains("loading");
+		const htmlStartedAt = performance.now();
+		if (startupTracked) {
+			startupMark("channel getHTML start", {
+				channelId: this.id,
+				guildId: this.guild_id,
+				aroundMessage: aroundMessage || "",
+			});
+		}
 		if (!this.visible) {
 			this.guild.loadChannel();
 			return;
@@ -2787,6 +2805,14 @@ class Channel extends SnowFlake {
 			}
 			if (renderedFromCache && !needsRebuild) {
 				if (this.localuser.needsBackfillOnce) this.localuser.needsBackfillOnce = false;
+				if (startupTracked) {
+					startupMark("channel getHTML done", {
+						channelId: this.id,
+						ms: Math.round(performance.now() - htmlStartedAt),
+						renderedFromCache,
+						needsRebuild,
+					});
+				}
 				return;
 			}
 		}
@@ -2796,6 +2822,14 @@ class Channel extends SnowFlake {
 
 		if (needsRebuild) await this.buildmessages(aroundMessage);
 		if (this.localuser.needsBackfillOnce) this.localuser.needsBackfillOnce = false;
+		if (startupTracked) {
+			startupMark("channel getHTML done", {
+				channelId: this.id,
+				ms: Math.round(performance.now() - htmlStartedAt),
+				renderedFromCache,
+				needsRebuild,
+			});
+		}
 		//loading.classList.remove("loading");
 	}
 	typingmap: Map<Member, number> = new Map();
@@ -2928,6 +2962,7 @@ class Channel extends SnowFlake {
 		notiselect.show();
 	}
 	async putmessages(force = false): Promise<boolean> {
+		const startedAt = performance.now();
 		//TODO swap out with the WS op code
 		if (!force && this.allthewayup) {
 			return false;
@@ -2956,6 +2991,14 @@ class Channel extends SnowFlake {
 			console.warn("[offline] failed to persist channel messages", error);
 		}
 		await this.slowmode();
+		if (document.getElementById("loading")?.classList.contains("loading")) {
+			startupMark("channel network batch", {
+				channelId: this.id,
+				ms: Math.round(performance.now() - startedAt),
+				count: response.length,
+				changed,
+			});
+		}
 		return changed;
 	}
 	private getCurrentBatch(limit: number): {id: string; edited_timestamp?: string | null}[] {
@@ -3003,6 +3046,7 @@ class Channel extends SnowFlake {
 		}
 	}
 	async restoreCachedMessages(): Promise<boolean> {
+		const startedAt = performance.now();
 		try {
 			const cached = await getChannelMessages(this.localuser.offlineScope, this.id);
 			if (!cached.messages.length) {
@@ -3010,6 +3054,14 @@ class Channel extends SnowFlake {
 			}
 			this.applyMessageBatch(cached.messages, cached.allTheWayUp);
 			await this.slowmode();
+			if (document.getElementById("loading")?.classList.contains("loading")) {
+				startupMark("channel cache batch", {
+					channelId: this.id,
+					ms: Math.round(performance.now() - startedAt),
+					count: cached.messages.length,
+					allTheWayUp: cached.allTheWayUp,
+				});
+			}
 			return true;
 		} catch (error) {
 			console.warn("[offline] failed to restore cached messages", error);

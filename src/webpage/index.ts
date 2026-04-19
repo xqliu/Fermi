@@ -3,6 +3,65 @@ export const FERMI_VERSION: string = "__BUILD_VERSION__";
 // @ts-ignore — signal to inline debug that module loaded
 window.__moduleLoaded = true;
 // @ts-ignore
+window.__startupStartedAt = performance.now();
+// @ts-ignore
+window.__diagState = {
+	startup: "booting",
+	ws: "no-ws",
+	idleS: 0,
+	reconn: false,
+	hb: false,
+};
+// @ts-ignore
+window.__renderWsDiag = () => {
+	try {
+		const diag = document.getElementById("ws-diag") as HTMLElement | null;
+		if (!diag) return;
+		// @ts-ignore
+		const state = window.__diagState || {};
+		const parts = [
+			`boot:${state.startup || "?"}`,
+			`ws:${state.ws || "?"}`,
+			`idle:${state.idleS ?? "?"}s`,
+			`reconn:${Boolean(state.reconn)}`,
+			`hb:${Boolean(state.hb)}`,
+		];
+		diag.textContent = parts.join(" ");
+	} catch (error) {
+		console.error("[ws-diag] failed to render", error);
+	}
+};
+// @ts-ignore
+window.__updateWsDiag = (patch: any) => {
+	try {
+		// @ts-ignore
+		Object.assign(window.__diagState, patch || {});
+		// @ts-ignore
+		window.__renderWsDiag();
+	} catch (error) {
+		console.error("[ws-diag] failed to update", error);
+	}
+};
+// @ts-ignore
+window.__startupMark = (stage: string, data?: any) => {
+	try {
+		// @ts-ignore
+		const delta = Math.round(performance.now() - window.__startupStartedAt);
+		const suffix = data === undefined ? "" : " " + (typeof data === "string" ? data : JSON.stringify(data));
+		const msg = `t+${delta}ms ${stage}${suffix}`;
+		// @ts-ignore
+		if (window.__updateWsDiag) window.__updateWsDiag({startup: `t+${delta}ms ${stage}`});
+		console.log(`[startup-trace] ${msg}`);
+		// @ts-ignore
+		if (window.__loadingDebug && document.getElementById("loading")?.classList.contains("loading")) {
+			// @ts-ignore
+			window.__loadingDebug(msg);
+		}
+	} catch (error) {
+		console.error("[startup-trace] failed to log", error);
+	}
+};
+// @ts-ignore
 if (window.__loadingDebug) window.__loadingDebug("index.js 已加载, v=" + FERMI_VERSION);
 // @ts-ignore
 window.__channelDebug = (stage: string, data?: any) => {
@@ -174,13 +233,17 @@ if (_forceChannelsInit || window.location.pathname.startsWith("/channels")) {
 	let templateID = new URLSearchParams(window.location.search).get("templateID");
 	const _loaddesc = document.getElementById("load-desc") as HTMLSpanElement;
 	const _debugEl = document.getElementById("loading-debug") as HTMLElement | null;
-	const _debugLog = (msg: string) => {
-		// @ts-ignore
-		if (window.__loadingDebug) window.__loadingDebug(msg);
-		else if (_debugEl) _debugEl.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
-		console.log(`[startup] ${msg}`);
-	};
-	// Global loading timeout — if stuck for 15s, make debug info prominent
+		const _debugLog = (msg: string) => {
+			// @ts-ignore
+			if (window.__loadingDebug) window.__loadingDebug(msg);
+			else if (_debugEl) _debugEl.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
+			console.log(`[startup] ${msg}`);
+		};
+		const _startupMark = (stage: string, data?: any) => {
+			// @ts-ignore
+			if (window.__startupMark) window.__startupMark(stage, data);
+		};
+		// Global loading timeout — if stuck for 15s, make debug info prominent
 	setTimeout(() => {
 		const loading = document.getElementById("loading");
 		if (loading && !loading.classList.contains("doneloading") && _debugEl) {
@@ -189,11 +252,13 @@ if (_forceChannelsInit || window.location.pathname.startsWith("/channels")) {
 			_debugEl.textContent += " ⚠️ 加载超时";
 		}
 	}, 15000);
-	_debugLog("加载语言包...");
-	if (_loaddesc) _loaddesc.textContent = "正在加载语言包...";
-	await I18n.done;
-	_debugLog("语言包完成，初始化...");
-	if (_loaddesc) _loaddesc.textContent = "正在初始化...";
+		_debugLog("加载语言包...");
+		_startupMark("boot start", {path: window.location.pathname});
+		if (_loaddesc) _loaddesc.textContent = "正在加载语言包...";
+		await I18n.done;
+		_debugLog("语言包完成，初始化...");
+		_startupMark("i18n ready");
+		if (_loaddesc) _loaddesc.textContent = "正在初始化...";
 	Localuser.loadFont();
 
 	I18n.translatePage();
@@ -276,6 +341,10 @@ if (_forceChannelsInit || window.location.pathname.startsWith("/channels")) {
 
 			regSwap(thisUser);
 			loaddesc.textContent = "正在连接服务器...";
+			_startupMark("user selected", {
+				hasStoredUser: Boolean(Localuser.users.users[current]),
+				userId: thisUser.userinfo?.id || "",
+			});
 			let _defaultsCfg: any = null;
 			let restoredOffline = false;
 			let onlineRetryRegistered = false;
@@ -284,16 +353,26 @@ if (_forceChannelsInit || window.location.pathname.startsWith("/channels")) {
 		if (navigator.onLine) {
 			fetch("/user-defaults.json").then(r => r.ok ? r.json() : null).then(d => { _defaultsCfg = d; }).catch(() => {});
 		}
-		const finishLoading = async (fromCache = false) => {
-			loaddesc.textContent = fromCache ? "正在加载本地缓存..." : "正在加载频道...";
-			thisUser.loaduser();
-			await thisUser.init();
-			hideLoadingOverlay();
-			loaddesc.textContent = fromCache ? "本地缓存已加载" : I18n.loaded();
-			console.log(fromCache ? "loaded from cache" : "done loading");
-			if (templateID) {
-				thisUser.passTemplateID(templateID);
-			}
+			const finishLoading = async (fromCache = false) => {
+				const finishStartedAt = performance.now();
+				_startupMark("finishLoading start", {fromCache});
+				loaddesc.textContent = fromCache ? "正在加载本地缓存..." : "正在加载频道...";
+				thisUser.loaduser();
+				await thisUser.init();
+				_startupMark("finishLoading init done", {
+					fromCache,
+					ms: Math.round(performance.now() - finishStartedAt),
+				});
+				hideLoadingOverlay();
+				loaddesc.textContent = fromCache ? "本地缓存已加载" : I18n.loaded();
+				console.log(fromCache ? "loaded from cache" : "done loading");
+				_startupMark("loading complete", {
+					fromCache,
+					ms: Math.round(performance.now() - finishStartedAt),
+				});
+				if (templateID) {
+					thisUser.passTemplateID(templateID);
+				}
 			// Navigate to per-user default guild/channel after init
 			if (!fromCache && window.location.pathname === "/channels/@me" && _defaultsCfg) {
 				const userId = thisUser.user?.id;
@@ -316,6 +395,7 @@ if (_forceChannelsInit || window.location.pathname.startsWith("/channels")) {
 			}
 			};
 			if (!navigator.onLine) {
+				_startupMark("offline restore start");
 				restoredOffline = await Promise.race<boolean>([
 					thisUser.restoreOfflineReady(),
 					new Promise<boolean>((resolve) =>
@@ -326,6 +406,7 @@ if (_forceChannelsInit || window.location.pathname.startsWith("/channels")) {
 					),
 				]);
 				if (restoredOffline) {
+					_startupMark("offline restore ready applied");
 					_debugLog("已恢复本地缓存，先显示本地数据");
 					try {
 						await finishLoading(true);
@@ -359,6 +440,8 @@ if (_forceChannelsInit || window.location.pathname.startsWith("/channels")) {
 					return;
 				}
 				try {
+					const wsAttemptStartedAt = performance.now();
+					_startupMark("ws attempt start", {attempt: retryCount + 1});
 					_debugLog(`WS 连接中... (attempt ${retryCount + 1})`);
 					loaddesc.textContent = "正在连接服务器...";
 					// Timeout WS connection — iOS PWA can hang indefinitely
@@ -366,6 +449,10 @@ if (_forceChannelsInit || window.location.pathname.startsWith("/channels")) {
 						thisUser.initwebsocket(),
 						new Promise((_, rej) => setTimeout(() => rej(new Error("WS timeout 15s")), 15000)),
 					]);
+					_startupMark("ws attempt done", {
+						attempt: retryCount + 1,
+						ms: Math.round(performance.now() - wsAttemptStartedAt),
+					});
 					retryCount = 0;
 				} catch (e) {
 					retryCount++;
