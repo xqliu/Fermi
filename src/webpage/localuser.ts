@@ -2226,6 +2226,7 @@ class Localuser {
 	async init() {
 		const initStartedAt = performance.now();
 		startupMark("init start");
+		const startupChannelLoadTimeoutMs = 1200;
 		this.quickSwitcher = new QuickSwitcher(this);
 		this.quickSwitcher.refreshBadges();
 		this.buildservers();
@@ -2283,7 +2284,7 @@ class Localuser {
 					const initialChannelStartedAt = performance.now();
 					startupMark("init channel load start", {guildId, channelId, messageId: messageId || ""});
 					const loadChannelPromise = guild.loadChannel(channelId || undefined, true, messageId);
-					const loadResult = await withSoftTimeout(loadChannelPromise, 5000, "initial channel load");
+					const loadResult = await withSoftTimeout(loadChannelPromise, startupChannelLoadTimeoutMs, "initial channel load");
 					if (loadResult.timedOut) {
 						startupMark("init channel load timed out", {
 							guildId,
@@ -2312,7 +2313,7 @@ class Localuser {
 					});
 					const fallbackStartedAt = performance.now();
 					const fallbackPromise = guild.loadChannel(undefined, false);
-					const fallbackResult = await withSoftTimeout(fallbackPromise, 5000, "fallback channel load");
+					const fallbackResult = await withSoftTimeout(fallbackPromise, startupChannelLoadTimeoutMs, "fallback channel load");
 					if (fallbackResult.timedOut) {
 						startupMark("fallback channel load timed out", {
 							guildId,
