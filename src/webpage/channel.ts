@@ -3236,7 +3236,14 @@ class Channel extends SnowFlake {
 	}
 	infinitefocus = false;
 	async tryfocusinfinate(id: string | void, flash = false) {
-		if (typeof id === "string" && !this.messages.has(id)) await this.getmessage(id);
+		if (typeof id === "string" && !this.messages.has(id)) {
+			const initialMessage = await this.getmessage(id);
+			if (!initialMessage) {
+				// Channel metadata can point at a deleted/stale last_message_id.
+				// Fall back to the newest loaded message, then to the normal fetch-latest path below.
+				id = this.lastmessage?.id;
+			}
+		}
 		if (this.infinitefocus) return;
 		this.infinitefocus = true;
 		const messages = document.getElementById("scrollWrap") as HTMLDivElement;
