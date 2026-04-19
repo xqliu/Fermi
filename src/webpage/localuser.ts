@@ -2129,6 +2129,30 @@ class Localuser {
 		this.quickSwitcher = new QuickSwitcher(this);
 		this.quickSwitcher.refreshBadges();
 		this.buildservers();
+		const withSoftTimeout = async <T>(
+			promise: Promise<T>,
+			timeoutMs: number,
+			label: string,
+		): Promise<{timedOut: false; value: T} | {timedOut: true}> => {
+			let timeoutId = 0;
+			const timeout = new Promise<{timedOut: true}>((resolve) => {
+				timeoutId = window.setTimeout(() => {
+					console.warn(`[init] ${label} timed out after ${timeoutMs}ms; continuing in background`);
+					resolve({timedOut: true});
+				}, timeoutMs);
+			});
+			const result = await Promise.race([
+				promise.then((value) => {
+					window.clearTimeout(timeoutId);
+					return {timedOut: false as const, value};
+				}, (error) => {
+					window.clearTimeout(timeoutId);
+					throw error;
+				}),
+				timeout,
+			]);
+			return result;
+		};
 
 		// Determine which guild/channel to restore.
 		// Prefer saved state from outoffocus() (reconnect scenario) over URL parsing.
@@ -2154,13 +2178,25 @@ class Localuser {
 				return;
 			}
 			try {
-				await guild.loadChannel(channelId || undefined, true, messageId);
+				const loadChannelPromise = guild.loadChannel(channelId || undefined, true, messageId);
+				const loadResult = await withSoftTimeout(loadChannelPromise, 5000, "initial channel load");
+				if (loadResult.timedOut) {
+					loadChannelPromise.catch((error) => {
+						console.error("[init] background loadChannel failed", error);
+					});
+				}
 				if (channelId) {
 					this.channelfocus = this.channelids.get(channelId);
 				}
 			} catch (error) {
 				console.warn("[offline] failed to restore requested route, falling back", error);
-				await guild.loadChannel(undefined, false);
+				const fallbackPromise = guild.loadChannel(undefined, false);
+				const fallbackResult = await withSoftTimeout(fallbackPromise, 5000, "fallback channel load");
+				if (fallbackResult.timedOut) {
+					fallbackPromise.catch((fallbackError) => {
+						console.error("[init] background fallback loadChannel failed", fallbackError);
+					});
+				}
 			}
 		}
 		// Restore typebox content saved before reconnect
