@@ -463,7 +463,7 @@ self.addEventListener("fetch", async (e) => {
 		return;
 	}
 	const pathname = new URL(req.url).pathname;
-	if (pathname.startsWith("/api/") || pathname === "/getupdates" || pathname === "/version.json" || pathname === "/user-defaults.json" || pathname === "/reset") {
+	if (pathname.startsWith("/api/") || pathname === "/getupdates" || pathname === "/version.json" || pathname === "/user-defaults.json" || pathname === "/reset" || pathname === "/reset.html") {
 		return;
 	}
 	if (samedomain(req.url)) {

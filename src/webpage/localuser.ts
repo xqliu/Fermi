@@ -3430,7 +3430,7 @@ class Localuser {
 					SW.forceClear();
 				});
 				update.addButtonInput("", "深度修复（解决更新卡住）🔧", () => {
-					window.location.href = "/reset";
+					window.location.href = "/reset.html";
 				});
 
 				// Version display: compiled-in SHA vs latest deployed

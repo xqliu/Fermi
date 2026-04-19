@@ -433,7 +433,7 @@ export function safeNavigate(url: string): void {
 		if (target.origin === start.origin) {
 			pendingNavigateTimers.push(
 				window.setTimeout(() => {
-					if (shouldKeepTrying()) window.location.replace("/reset");
+					if (shouldKeepTrying()) window.location.replace("/reset.html");
 				}, 5000),
 			);
 		}
@@ -450,11 +450,11 @@ export function safeNavigate(url: string): void {
 			if (shouldKeepTrying()) window.location.assign(target.toString());
 		}, 2500),
 	);
-	// Only fall back to /reset if we are still stuck on the original page.
+	// Only fall back to /reset.html if we are still stuck on the original page.
 	if (target.origin === start.origin) {
 		pendingNavigateTimers.push(
 			window.setTimeout(() => {
-				if (shouldKeepTrying()) window.location.href = "/reset";
+				if (shouldKeepTrying()) window.location.href = "/reset.html";
 			}, 5000),
 		);
 	}
