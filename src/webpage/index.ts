@@ -7,6 +7,7 @@ window.__startupStartedAt = performance.now();
 // @ts-ignore
 window.__diagState = {
 	startup: "booting",
+	startupLines: [] as string[],
 	ws: "no-ws",
 	idleS: 0,
 	reconn: false,
@@ -26,7 +27,8 @@ window.__renderWsDiag = () => {
 			`reconn:${Boolean(state.reconn)}`,
 			`hb:${Boolean(state.hb)}`,
 		];
-		diag.textContent = parts.join(" ");
+		const lines = Array.isArray(state.startupLines) ? state.startupLines.slice(-3) : [];
+		diag.textContent = [parts.join(" "), ...lines].join("\n");
 	} catch (error) {
 		console.error("[ws-diag] failed to render", error);
 	}
@@ -50,7 +52,14 @@ window.__startupMark = (stage: string, data?: any) => {
 		const suffix = data === undefined ? "" : " " + (typeof data === "string" ? data : JSON.stringify(data));
 		const msg = `t+${delta}ms ${stage}${suffix}`;
 		// @ts-ignore
-		if (window.__updateWsDiag) window.__updateWsDiag({startup: `t+${delta}ms ${stage}`});
+		const prevLines =
+			// @ts-ignore
+			(Array.isArray(window.__diagState?.startupLines) ? window.__diagState.startupLines : []).slice(-2);
+		// @ts-ignore
+		if (window.__updateWsDiag) window.__updateWsDiag({
+			startup: `t+${delta}ms ${stage}`,
+			startupLines: [...prevLines, msg],
+		});
 		console.log(`[startup-trace] ${msg}`);
 		// @ts-ignore
 		if (window.__loadingDebug && document.getElementById("loading")?.classList.contains("loading")) {
