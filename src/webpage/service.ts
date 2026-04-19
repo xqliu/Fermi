@@ -6,6 +6,7 @@ const BUILD_VERSION = "__BUILD_VERSION__";
 const SHELL_CACHE_PREFIX = "cache-";
 const CURRENT_SHELL_CACHE = `${SHELL_CACHE_PREFIX}${BUILD_VERSION}`;
 const REQUIRED_SHELL_PATHS = ["/app.html", "/index.js", "/getupdates"];
+const FULL_SHELL_MARKER_PATH = "/__full-shell-ready__";
 console.log("[SW] version:", BUILD_VERSION);
 
 async function getActiveShellCacheName() {
@@ -37,10 +38,17 @@ async function hasCurrentShellCache() {
 	const matches = await Promise.all(REQUIRED_SHELL_PATHS.map((path) => cache.match(new URL(path, self.location.origin))));
 	return matches.every(Boolean);
 }
+async function hasFullShellCache(cacheName = CURRENT_SHELL_CACHE) {
+	const cache = await caches.open(cacheName);
+	return Boolean(await cache.match(new URL(FULL_SHELL_MARKER_PATH, self.location.origin)));
+}
 async function cacheRequiredShellFiles(cacheName = CURRENT_SHELL_CACHE) {
 	for (const path of REQUIRED_SHELL_PATHS) {
 		try {
 			const response = await fetch(path, {cache: "no-store"});
+			if (!response.ok) {
+				throw new Error(`HTTP ${response.status} for ${path}`);
+			}
 			await putInCache(new URL(path, self.location.origin), response, cacheName);
 		} catch (error) {
 			console.error("[SW] failed to cache shell path:", path, error);
@@ -48,7 +56,9 @@ async function cacheRequiredShellFiles(cacheName = CURRENT_SHELL_CACHE) {
 	}
 }
 let ensureShellCachePromise: Promise<boolean> | undefined;
+let ensureFullShellCachePromise: Promise<boolean> | undefined;
 let lastEnsureShellCacheAt = 0;
+let lastEnsureFullShellAt = 0;
 type files = {[key: string]: string | files};
 async function getAllFiles() {
 	const files = await fetch("/files.json");
@@ -58,7 +68,8 @@ async function getAllFiles() {
 // Directories that are large and loaded on-demand — skip during precache
 const LAZY_DIRS = new Set(["/emoji"]);
 
-async function cachePath(path: string, json: files, cacheName = CURRENT_SHELL_CACHE) {
+async function cachePath(path: string, json: files, cacheName = CURRENT_SHELL_CACHE): Promise<boolean> {
+	let success = true;
 	for (const [name, thing] of Object.entries(json)) {
 		try {
 			if (typeof thing === "string") {
@@ -67,6 +78,9 @@ async function cachePath(path: string, json: files, cacheName = CURRENT_SHELL_CA
 					continue;
 				}
 				const res = await fetch(lpath, { cache: "no-store" });
+				if (!res.ok) {
+					throw new Error(`HTTP ${res.status} for ${lpath}`);
+				}
 				await putInCache(new URL(lpath, self.location.origin), res, cacheName);
 			} else {
 				const dirPath = path + "/" + name;
@@ -74,20 +88,73 @@ async function cachePath(path: string, json: files, cacheName = CURRENT_SHELL_CA
 					console.log("[SW] skipping lazy dir:", dirPath);
 					continue;
 				}
-				await cachePath(dirPath, thing, cacheName);
+				success = (await cachePath(dirPath, thing, cacheName)) && success;
 			}
 		} catch (error) {
+			success = false;
 			console.error("[SW] failed to cache path:", path + "/" + name, error);
 		}
 	}
+	return success;
 }
 
 async function downloadAllFiles(cacheName = CURRENT_SHELL_CACHE) {
 	const json = await getAllFiles();
-	await cachePath("", json, cacheName);
+	return await cachePath("", json, cacheName);
+}
+async function markFullShellCacheReady(cacheName = CURRENT_SHELL_CACHE) {
+	await putInCache(
+		new URL(FULL_SHELL_MARKER_PATH, self.location.origin),
+		new Response(BUILD_VERSION, {
+			headers: {
+				"Content-Type": "text/plain; charset=utf-8",
+			},
+		}),
+		cacheName,
+	);
+}
+async function ensureFullShellCache(force = false): Promise<boolean> {
+	if (!force && (await hasFullShellCache())) {
+		await deleteOldShellCaches(CURRENT_SHELL_CACHE);
+		return true;
+	}
+	if (ensureFullShellCachePromise) {
+		return ensureFullShellCachePromise;
+	}
+	const now = Date.now();
+	if (!force && now - lastEnsureFullShellAt < 30000) {
+		return false;
+	}
+	lastEnsureFullShellAt = now;
+	ensureFullShellCachePromise = (async () => {
+		try {
+			console.log("[SW] backfilling full shell for", BUILD_VERSION);
+			const complete = await downloadAllFiles(CURRENT_SHELL_CACHE);
+			if (!complete) {
+				console.warn("[SW] full shell backfill incomplete; keeping older caches");
+				return false;
+			}
+			await markFullShellCacheReady(CURRENT_SHELL_CACHE);
+			console.log("[SW] full shell ready for", BUILD_VERSION);
+			await deleteOldShellCaches(CURRENT_SHELL_CACHE);
+			return true;
+		} catch (error) {
+			console.error("[SW] full shell backfill failed:", error);
+			return false;
+		} finally {
+			ensureFullShellCachePromise = undefined;
+		}
+	})();
+	return ensureFullShellCachePromise;
+}
+function backfillFullShellInBackground(reason: string) {
+	void ensureFullShellCache().catch((error) =>
+		console.error(`[SW] full shell background backfill failed (${reason}):`, error),
+	);
 }
 async function ensureCurrentShellCache(force = false): Promise<boolean> {
 	if (!force && (await hasCurrentShellCache())) {
+		backfillFullShellInBackground("required shell already ready");
 		return true;
 	}
 	if (ensureShellCachePromise) {
@@ -100,18 +167,18 @@ async function ensureCurrentShellCache(force = false): Promise<boolean> {
 	lastEnsureShellCacheAt = now;
 	ensureShellCachePromise = (async () => {
 		try {
-			console.log("[SW] shell cache incomplete, backfilling current version");
+			console.log("[SW] shell cache incomplete, backfilling required shell for current version");
 			await cacheRequiredShellFiles(CURRENT_SHELL_CACHE);
 			const ready = await hasCurrentShellCache();
 			if (ready) {
-				console.log("[SW] shell cache ready for", BUILD_VERSION);
-				await deleteOldShellCaches(CURRENT_SHELL_CACHE);
+				console.log("[SW] required shell ready for", BUILD_VERSION);
+				backfillFullShellInBackground("required shell backfill complete");
 			} else {
-				console.warn("[SW] shell cache still incomplete after backfill");
+				console.warn("[SW] required shell still incomplete after backfill");
 			}
 			return ready;
 		} catch (error) {
-			console.error("[SW] shell cache backfill failed:", error);
+			console.error("[SW] required shell backfill failed:", error);
 			return false;
 		} finally {
 			ensureShellCachePromise = undefined;
