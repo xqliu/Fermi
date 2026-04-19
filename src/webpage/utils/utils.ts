@@ -1077,6 +1077,40 @@ export class SW {
 			safeReload();
 			return;
 		}
+		const waitForWorkerState = (worker: ServiceWorker, timeoutMs: number) =>
+			new Promise<void>((resolve) => {
+				let settled = false;
+				const done = () => {
+					if (settled) return;
+					settled = true;
+					worker.removeEventListener("statechange", onStateChange);
+					resolve();
+				};
+				const onStateChange = () => {
+					if (worker.state === "installed" || worker.state === "activated" || worker.state === "redundant") {
+						done();
+					}
+				};
+				if (worker.state === "installed" || worker.state === "activated" || worker.state === "redundant") {
+					done();
+					return;
+				}
+				worker.addEventListener("statechange", onStateChange);
+				setTimeout(done, timeoutMs);
+			});
+		const waitForControllerChange = (timeoutMs: number) =>
+			new Promise<boolean>((resolve) => {
+				let settled = false;
+				const done = (changed: boolean) => {
+					if (settled) return;
+					settled = true;
+					navigator.serviceWorker.removeEventListener("controllerchange", onControllerChange);
+					resolve(changed);
+				};
+				const onControllerChange = () => done(true);
+				navigator.serviceWorker.addEventListener("controllerchange", onControllerChange);
+				setTimeout(() => done(false), timeoutMs);
+			});
 		let reg = this.registration;
 		if (!reg) {
 			reg = await navigator.serviceWorker.getRegistration("/");
@@ -1085,52 +1119,34 @@ export class SW {
 			safeReload();
 			return;
 		}
+		const initialController = navigator.serviceWorker.controller?.scriptURL;
 		try {
 			await reg.update();
 		} catch (error) {
 			console.warn("[Update] registration.update() failed during apply:", error);
 		}
 		if (!reg.waiting && reg.installing) {
-			await new Promise<void>((resolve) => {
-				const sw = reg!.installing;
-				if (!sw) {
-					resolve();
-					return;
-				}
-				const done = () => resolve();
-				if (sw.state === "installed" || sw.state === "activated" || sw.state === "redundant") {
-					resolve();
-					return;
-				}
-				sw.addEventListener("statechange", () => {
-					if (sw.state === "installed" || sw.state === "activated" || sw.state === "redundant") {
-						done();
-					}
-				});
-				setTimeout(done, 4000);
-			});
+			await waitForWorkerState(reg.installing, 15000);
 		}
 		reg = (await navigator.serviceWorker.getRegistration("/")) || reg;
 		if (reg.waiting) {
-			await new Promise<void>((resolve) => {
-				const onControllerChange = () => {
-					navigator.serviceWorker.removeEventListener("controllerchange", onControllerChange);
-					resolve();
-				};
-				navigator.serviceWorker.addEventListener("controllerchange", onControllerChange);
-				try {
-					reg!.waiting!.postMessage({code: "replace"});
-				} catch (error) {
-					console.warn("[Update] failed to activate waiting worker:", error);
-					navigator.serviceWorker.removeEventListener("controllerchange", onControllerChange);
-					resolve();
-					return;
-				}
-				setTimeout(() => {
-					navigator.serviceWorker.removeEventListener("controllerchange", onControllerChange);
-					resolve();
-				}, 4000);
-			});
+			const controllerChange = waitForControllerChange(15000);
+			try {
+				reg.waiting.postMessage({code: "replace"});
+			} catch (error) {
+				console.warn("[Update] failed to activate waiting worker:", error);
+			}
+			const tookControl = await controllerChange;
+			reg = (await navigator.serviceWorker.getRegistration("/")) || reg;
+			if (!tookControl && reg.waiting) {
+				console.warn("[Update] waiting worker did not take control; skip reload");
+				this.needsUpdate = true;
+				return;
+			}
+		}
+		const currentController = navigator.serviceWorker.controller?.scriptURL;
+		if (!reg.waiting && initialController && currentController && initialController !== currentController) {
+			console.log("[Update] controller changed:", initialController, "->", currentController);
 		}
 		this.needsUpdate = false;
 		safeReload();

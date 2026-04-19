@@ -37,6 +37,16 @@ async function hasCurrentShellCache() {
 	const matches = await Promise.all(REQUIRED_SHELL_PATHS.map((path) => cache.match(new URL(path, self.location.origin))));
 	return matches.every(Boolean);
 }
+async function cacheRequiredShellFiles(cacheName = CURRENT_SHELL_CACHE) {
+	for (const path of REQUIRED_SHELL_PATHS) {
+		try {
+			const response = await fetch(path, {cache: "no-store"});
+			await putInCache(new URL(path, self.location.origin), response, cacheName);
+		} catch (error) {
+			console.error("[SW] failed to cache shell path:", path, error);
+		}
+	}
+}
 let ensureShellCachePromise: Promise<boolean> | undefined;
 let lastEnsureShellCacheAt = 0;
 type files = {[key: string]: string | files};
@@ -91,7 +101,7 @@ async function ensureCurrentShellCache(force = false): Promise<boolean> {
 	ensureShellCachePromise = (async () => {
 		try {
 			console.log("[SW] shell cache incomplete, backfilling current version");
-			await downloadAllFiles(CURRENT_SHELL_CACHE);
+			await cacheRequiredShellFiles(CURRENT_SHELL_CACHE);
 			const ready = await hasCurrentShellCache();
 			if (ready) {
 				console.log("[SW] shell cache ready for", BUILD_VERSION);
@@ -580,6 +590,9 @@ self.addEventListener("notificationclick", (event) => {
 self.addEventListener("message", (message) => {
 	const data = message.data;
 	switch (data.code) {
+		case "replace":
+			(self as any).skipWaiting();
+			break;
 		case "setMode":
 			enabled = data.data;
 			break;
